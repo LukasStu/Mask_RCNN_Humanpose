@@ -21,12 +21,13 @@ from collections import OrderedDict
 import numpy as np
 import scipy.misc
 import tensorflow as tf
-import keras
-import keras.backend as K
-import keras.layers as KL
-import keras.initializers as KI
-import keras.engine as KE
-import keras.models as KM
+from tensorflow import keras
+import tensorflow.keras.backend as K
+import tensorflow.keras.layers as KL
+import tensorflow.keras.initializers as KI
+#import keras.engine as KE
+import tensorflow.keras.models as KM
+
 
 import utils
 
@@ -224,7 +225,7 @@ def clip_boxes_graph(boxes, window):
     return clipped
 
 
-class ProposalLayer(KE.Layer):
+class ProposalLayer(KL.Layer):
     """Receives anchor scores and selects a subset to pass as proposals
     to the second stage. Filtering is done based on anchor scores and
     non-max suppression to remove overlaps. It also applies bounding
@@ -320,7 +321,7 @@ def log2_graph(x):
     return tf.math.log(x) / tf.math.log(2.0)
 
 
-class PyramidROIAlign(KE.Layer):
+class PyramidROIAlign(KL.Layer):
     """Implements ROI Pooling on multiple levels of the feature pyramid.
 
     Params:
@@ -787,7 +788,7 @@ def detection_keypoint_targets_graph(proposals, gt_class_ids, gt_boxes, gt_keypo
 
 
 
-class DetectionKeypointTargetLayer(KE.Layer):
+class DetectionKeypointTargetLayer(KL.Layer):
     """Subsamples proposals and generates target box refinement, class_ids,keypoint_weights
     and keypoint_masks for each.
 
@@ -855,7 +856,7 @@ class DetectionKeypointTargetLayer(KE.Layer):
     #     return [None, None, None, None, None,None]
 
 
-class DetectionTargetLayer(KE.Layer):
+class DetectionTargetLayer(KL.Layer):
     """Subsamples proposals and generates target box refinement, class_ids,
     and masks for each.
 
@@ -1041,7 +1042,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     return detections
 
 
-class DetectionLayer(KE.Layer):
+class DetectionLayer(KL.Layer):
     """Takes classified proposal boxes and their bounding box deltas and
     returns the final detection boxes.
 
@@ -1152,7 +1153,7 @@ def build_rpn_model(anchor_stride, anchors_per_location, depth):
 ############################################################
 
 def fpn_classifier_graph(rois, feature_maps,
-                         image_shape, pool_size, num_classes,num_keypoints = 17):
+                         image_shape, pool_size, num_classes, num_keypoints = 17):
     """Builds the computation graph of the feature pyramid network classifier
     and regressor heads.
 
@@ -1200,7 +1201,12 @@ def fpn_classifier_graph(rois, feature_maps,
                            name='mrcnn_bbox_fc')(shared)
     # Reshape to [batch, boxes, num_classes, (dy, dx, log(dh), log(dw))]
     s = K.int_shape(x)
+    print(s)
     mrcnn_bbox = KL.Reshape((s[1], num_classes, 4), name="mrcnn_bbox")(x)
+    #mrcnn_bbox = KL.Reshape((-1, num_classes, 4), name="mrcnn_bbox")(x)
+    
+
+    
 
     # Keypoint visible head
     # x = KL.TimeDistributed(KL.Dense(num_keypoints * 2, activation='linear'), name='mask_class_fc')(shared)
