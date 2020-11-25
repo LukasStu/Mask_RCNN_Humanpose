@@ -78,7 +78,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block,
     """The identity_block is the block that has no conv layer at shortcut
     # Arguments
         input_tensor: input tensor
-        kernel_size: defualt 3, the kernel size of middle conv layer at main path
+        kernel_size: default 3, the kernel size of middle conv layer at main path
         filters: list of integers, the nb_filters of 3 conv layer at main path
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
@@ -1642,7 +1642,7 @@ def keypoint_mrcnn_mask_loss_graph(target_keypoints, target_keypoint_weights, ta
 
 def load_image_gt(dataset, config, image_id, augment=False,
                   use_mini_mask=False):
-    """Load and return ground trdefuth data for an image (image, mask, bounding boxes).
+    """Load and return ground truth data for an image (image, mask, bounding boxes).
 
     augment: If true, apply random image augmentation. Currently, only
         horizontal flipping is offered.
@@ -2741,6 +2741,8 @@ class MaskRCNN():
                        # +  test_target_keypoint_mask for test the keypoint loss graph
 
             model = KM.Model(inputs, outputs, name='mask_keypoint_mrcnn')
+
+
         else:
             # Network Heads
             # Proposal classifier and BBox regressor heads
@@ -2777,6 +2779,10 @@ class MaskRCNN():
             model = KM.Model([input_image, input_image_meta],
                              [detections, mrcnn_class, mrcnn_bbox, rpn_rois, rpn_class, rpn_bbox, mrcnn_mask, keypoint_mcrcnn_prob],
                              name='keypoint_mask_rcnn')
+            #model.summary()
+            #keras.utils.plot_model(model, "my_first_model_with_shape_info.png", show_shapes=True)
+
+
 
         # Add multi-GPU support.
         if config.GPU_COUNT > 1:
@@ -2984,7 +2990,7 @@ class MaskRCNN():
         layers: Allows selecting wich layers to train. It can be:
             - A regular expression to match layer names to train
             - One of these predefined values:
-              heaads: The RPN, classifier and mask heads of the network
+              heads: The RPN, classifier and mask heads of the network
               all: All the layers
               3+: Train Resnet stage 3 and up
               4+: Train Resnet stage 4 and up
