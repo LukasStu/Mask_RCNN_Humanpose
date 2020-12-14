@@ -227,7 +227,7 @@ def clip_boxes_graph(boxes, window):
 
 class ProposalLayer(KL.Layer):
     """Receives anchor scores and selects a subset to pass as proposals
-    to the second stage. Filtering is done based on anchor scores and
+    to the second stage (Head?). Filtering is done based on anchor scores and
     non-max suppression to remove overlaps. It also applies bounding
     box refinement deltas to anchors.
 
@@ -297,17 +297,19 @@ class ProposalLayer(KL.Layer):
             padding = tf.maximum(self.proposal_count - tf.shape(input=proposals)[0], 0)
             proposals = tf.pad(tensor=proposals, paddings=[(0, padding), (0, 0)])
             return proposals
+        
         proposals = utils.batch_slice([boxes, scores], nms,
                                       self.config.IMAGES_PER_GPU)
+        print("proposals: ",K.int_shape(proposals))
 
         if not context.executing_eagerly():
-            # Infer the static output shape:
+            #Infer the static output shape:
             out_shape = self.compute_output_shape(None)
             proposals.set_shape(out_shape)
         return proposals
 
     def compute_output_shape(self, input_shape):
-        return None, self.proposal_count, 4
+        return (None, self.proposal_count, 4)
 
 
 ############################################################
@@ -410,7 +412,7 @@ class PyramidROIAlign(KL.Layer):
         # Sort box_to_level by batch then box index
         # TF doesn't have a way to sort by two columns, so merge them and sort.
         sorting_tensor = box_to_level[:, 0] * 100000 + box_to_level[:, 1]
-        ix = tf.nn.top_k(sorting_tensor, k=tf.shape(input=
+        ix = tf.math.top_k(sorting_tensor, k=tf.shape(input=
             box_to_level)[0]).indices[::-1]
         ix = tf.gather(box_to_level[:, 2], ix)
         pooled = tf.gather(pooled, ix)
@@ -2543,7 +2545,10 @@ class MaskRCNN():
         # Inputs
         input_image = KL.Input(
             shape=config.IMAGE_SHAPE.tolist(), name="input_image")
+        input_image2 = KL.Input(
+            shape=[None, None, config.IMAGE_SHAPE[2]], name="input_image")
         input_image_meta = KL.Input(shape=[None], name="input_image_meta")
+        print(input_image)
         if mode == "training":
             # RPN GT
             input_rpn_match = KL.Input(
@@ -2623,7 +2628,7 @@ class MaskRCNN():
         # Note that P6 is used in RPN, but not in the classifier heads.
         rpn_feature_maps = [P2, P3, P4, P5, P6]
         mrcnn_feature_maps = [P2, P3, P4, P5]
-
+        print(rpn_feature_maps)
         # Anchors
         if mode == "training":
             anchors = self.get_anchors(config.IMAGE_SHAPE)
