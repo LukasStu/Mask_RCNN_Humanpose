@@ -56,3 +56,29 @@ model_path = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose.h5")
 assert model_path != "", "Provide path to trained weights"
 print("Loading weights from ", model_path)
 model.load_weights(model_path, by_name=True)
+
+import cv2
+# COCO Class names
+#For human pose task We just use "BG" and "person"
+class_names = ['BG', 'person']
+# Load a random image from the images folder
+file_names = next(os.walk(IMAGE_DIR))[2]
+# image = skimage.io.imread(os.path.join(IMAGE_DIR, random.choice(file_names)))
+image = cv2.imread(os.path.join(IMAGE_DIR, random.choice(file_names)))
+#BGR->RGB
+image = image[:,:,::-1]
+
+# Run detection
+results = model.detect_keypoint([image], verbose=1)
+r = results[0] # for one image
+
+log("rois",r['rois'])
+log("keypoints",r['keypoints'])
+log("class_ids",r['class_ids'])
+log("keypoints",r['keypoints'])
+log("masks",r['masks'])
+log("scores",r['scores'])
+
+visualize.display_keypoints(image,r['rois'],r['keypoints'],r['class_ids'],class_names,skeleton = inference_config.LIMBS)
+visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], 
+                            class_names, r['scores'])

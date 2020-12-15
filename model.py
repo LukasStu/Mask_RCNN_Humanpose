@@ -969,6 +969,9 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     refined_rois = clip_boxes_graph(refined_rois, window)
     # Round and cast to int since we're deadling with pixels now
     refined_rois = tf.dtypes.cast([tf.math.rint(refined_rois)],tf.int32)
+    print('refinded_rois: ',refined_rois)
+    refined_rois = tf.squeeze(refined_rois, axis=0)
+    print('refinded_rois_squeezed: ',refined_rois)
 
     # TODO: Filter out boxes with zero area
 
@@ -986,6 +989,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     pre_nms_class_ids = tf.gather(class_ids, keep)
     pre_nms_scores = tf.gather(class_scores, keep)
     pre_nms_rois = tf.gather(refined_rois,   keep)
+    pre_nms_rois = tf.squeeze(pre_nms_rois, axis=0)
     # pre_nms_keypoint_weights = tf.gather(keypoint_weights, keep)
     unique_pre_nms_class_ids = tf.unique(pre_nms_class_ids)[0]
 
@@ -1028,12 +1032,15 @@ def refine_detections_graph(rois, probs, deltas, window, config):
 
     # Arrange output as [N, (y1, x1, y2, x2, class_id, score)]
     # Coordinates are in image domain.
+    print('a',tf.dtypes.cast([tf.gather(refined_rois, keep)],tf.float32))
+    print('b',tf.dtypes.cast(tf.gather(class_ids, keep), tf.float32)[..., tf.newaxis])
+    print('c',tf.gather(class_scores, keep))
+    print(tf.squeeze(tf.dtypes.cast([tf.gather(refined_rois, keep)],tf.float32),axis=0))
     detections = tf.concat([
-        tf.dtypes.cast([tf.gather(refined_rois, keep)],tf.float32),
-        tf.dtypes.cast([tf.gather(class_ids, keep)],tf.float32)[..., tf.newaxis],
+        tf.squeeze(tf.dtypes.cast([tf.gather(refined_rois, keep)],tf.float32),axis=0),
+        tf.squeeze(tf.dtypes.cast([tf.gather(class_ids, keep)],tf.float32)[..., tf.newaxis],axis=0),
         tf.gather(class_scores, keep)[..., tf.newaxis]
         ], axis=1)
-
 
     # Pad with zeros if detections < DETECTION_MAX_INSTANCES
     gap = config.DETECTION_MAX_INSTANCES - tf.shape(input=detections)[0]
@@ -1067,6 +1074,7 @@ class DetectionLayer(KL.Layer):
 
         # Run detection refinement graph on each item in the batch
         _, _, window, _ = parse_image_meta_graph(image_meta)
+        print('Window: ',window)
         outputs = utils.batch_slice(
             [rois, mrcnn_class, mrcnn_bbox, window],
             lambda x, y, w, z: refine_detections_graph(x, y,  w, z, self.config),
@@ -1309,11 +1317,11 @@ def build_fpn_keypoint_graph(rois, feature_maps,
     x = KL.TimeDistributed(KL.Conv2DTranspose(num_keypoints, (2, 2), strides=2),
                            name="mrcnn_keypoint_mask_deconv")(x)
     x = KL.TimeDistributed(
-        KL.Lambda(lambda z: tf.image.resize_bilinear(z, [28, 28])),name="mrcnn_keypoint_mask_upsample_1")(x)
+        KL.Lambda(lambda z: tf.image.resize(z, [28, 28], method='bilinear')),name="mrcnn_keypoint_mask_upsample_1")(x)
 
     #shape: batch_size, num_roi, 56, 56, num_keypoint
     x = KL.TimeDistributed(
-        KL.Lambda(lambda z: tf.image.resize_bilinear(z, [56, 56])),name="mrcnn_keypoint_mask_upsample_2")(x)
+        KL.Lambda(lambda z: tf.image.resize(z, [56, 56], method='bilinear')),name="mrcnn_keypoint_mask_upsample_2")(x)
     # shape: batch_size, num_roi, num_keypoint, 56, 56
     x = KL.TimeDistributed(KL.Lambda(lambda x: tf.transpose(x,[0,3,1,2])), name="mrcnn_keypoint_mask_transpose")(x)
     s = K.int_shape(x)
@@ -2814,7 +2822,7 @@ class MaskRCNN():
 
             #shape: Batch, N_ROI, Number_Keypoint, height*width
             keypoint_mcrcnn_prob = KL.Activation("softmax", name="mrcnn_prob")(keypoint_mrcnn)
-            model = KM.Model([input_image, input_image_meta],
+            model = KM.Model([input_image, input_image_meta, input_anchors],
                              [detections, mrcnn_class, mrcnn_bbox, rpn_rois, rpn_class, rpn_bbox, mrcnn_mask, keypoint_mcrcnn_prob],
                              name='keypoint_mask_rcnn')
             #model.summary()
@@ -2855,39 +2863,37 @@ class MaskRCNN():
         return dir_name, checkpoint
 
     def load_weights(self, filepath, by_name=False, exclude=None):
-        """Modified version of the correspoding Keras function with
+        """Modified version of the corresponding Keras function with
         the addition of multi-GPU support and the ability to exclude
         some layers from loading.
-        exlude: list of layer names to excluce
+        exclude: list of layer names to exclude
         """
         import h5py
-        from keras.engine import topology
+        from tensorflow.python.keras.saving import hdf5_format
 
         if exclude:
             by_name = True
 
         if h5py is None:
             raise ImportError('`load_weights` requires h5py.')
-        f = h5py.File(filepath, mode='r')
-        if 'layer_names' not in f.attrs and 'model_weights' in f:
-            f = f['model_weights']
+        with h5py.File(filepath, mode='r') as f:
+            if 'layer_names' not in f.attrs and 'model_weights' in f:
+                f = f['model_weights']
 
-        # In multi-GPU training, we wrap the model. Get layers
-        # of the inner model because they have the weights.
-        keras_model = self.keras_model
-        layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model")\
-            else keras_model.layers
+            # In multi-GPU training, we wrap the model. Get layers
+            # of the inner model because they have the weights.
+            keras_model = self.keras_model
+            layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model")\
+                else keras_model.layers
 
-        # Exclude some layers
-        if exclude:
-            layers = filter(lambda l: l.name not in exclude, layers)
+            # Exclude some layers
+            if exclude:
+                layers = filter(lambda l: l.name not in exclude, layers)
 
-        if by_name:
-            topology.load_weights_from_hdf5_group_by_name(f, layers)
-        else:
-            topology.load_weights_from_hdf5_group(f, layers)
-        if hasattr(f, 'close'):
-            f.close()
+            if by_name:
+                hdf5_format.load_weights_from_hdf5_group_by_name(f, layers)
+            else:
+                hdf5_format.load_weights_from_hdf5_group(f, layers)
 
         # Update the log directory
         self.set_log_dir(filepath)
