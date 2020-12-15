@@ -36,7 +36,7 @@ if not os.path.exists(COCO_MODEL_PATH):
 # Directory of images to run detection on
 #COCO_DIR = "D:/Github/FastMaskRCNN/data/coco"  # TODO: enter value here
 #IMAGE_DIR = os.path.join(ROOT_DIR, "images")
-COCO_DIR = "E:/DSLR/01_Privat/2020/Hochzeit/Daniel/Fotos_Reportage"  # TODO: enter value here
+COCO_DIR = "D:/Eigene Dateien/Dokumente/coco/test2017"  # TODO: enter value here
 IMAGE_DIR = COCO_DIR
 
 class InferenceConfig(coco.CocoConfig):
@@ -52,7 +52,6 @@ model = modellib.MaskRCNN(mode="inference",
                           model_dir=MODEL_DIR)
 
 # Get path to saved weights
-
 model_path = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose.h5")
 assert model_path != "", "Provide path to trained weights"
 print("Loading weights from ", model_path)
