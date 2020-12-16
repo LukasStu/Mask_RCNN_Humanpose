@@ -536,12 +536,12 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     # Positive ROIs
     positive_count = int(config.TRAIN_ROIS_PER_IMAGE *
                          config.ROI_POSITIVE_RATIO)
-    positive_indices = tf.random_shuffle(positive_indices)[:positive_count]
+    positive_indices = tf.random.shuffle(positive_indices)[:positive_count]
     positive_count = tf.shape(input=positive_indices)[0]
     # Negative ROIs. Add enough to maintain positive:negative ratio.
     r = 1.0 / config.ROI_POSITIVE_RATIO
     negative_count = tf.cast(r * tf.cast(positive_count, tf.float32), tf.int32) - positive_count
-    negative_indices = tf.random_shuffle(negative_indices)[:negative_count]
+    negative_indices = tf.random.shuffle(negative_indices)[:negative_count]
     # Gather selected ROIs
     positive_rois = tf.gather(proposals, positive_indices)
     negative_rois = tf.gather(proposals, negative_indices)
@@ -679,12 +679,12 @@ def detection_keypoint_targets_graph(proposals, gt_class_ids, gt_boxes, gt_keypo
     # Positive ROIs
     positive_count = int(config.TRAIN_ROIS_PER_IMAGE *
                          config.ROI_POSITIVE_RATIO)
-    positive_indices = tf.random_shuffle(positive_indices)[:positive_count]
+    positive_indices = tf.random.shuffle(positive_indices)[:positive_count]
     positive_count = tf.shape(input=positive_indices)[0]
     # Negative ROIs. Add enough to maintain positive:negative ratio.
     r = 1.0 / config.ROI_POSITIVE_RATIO
     negative_count = tf.cast(r * tf.cast(positive_count, tf.float32), tf.int32) - positive_count
-    negative_indices = tf.random_shuffle(negative_indices)[:negative_count]
+    negative_indices = tf.random.shuffle(negative_indices)[:negative_count]
     # Gather selected ROIs
     positive_rois = tf.gather(proposals, positive_indices)
     negative_rois = tf.gather(proposals, negative_indices)
@@ -1332,7 +1332,10 @@ def build_fpn_keypoint_graph(rois, feature_maps,
     # shape: batch_size, num_roi, num_keypoint, 56, 56
     x = KL.TimeDistributed(KL.Lambda(lambda x: tf.transpose(x,[0,3,1,2])), name="mrcnn_keypoint_mask_transpose")(x)
     s = K.int_shape(x)
-    x = KL.Reshape((s[1], num_keypoints, -1), name='mrcnn_keypoint_mask_reshape')(x)
+    if s[1] is None:
+        x = KL.Reshape((-1, num_keypoints, -1), name='mrcnn_keypoint_mask_reshape')(x)
+    else:
+        x = KL.Reshape((s[1], num_keypoints, -1), name='mrcnn_keypoint_mask_reshape')(x)
     return x
 
 
@@ -2918,7 +2921,7 @@ class MaskRCNN():
             if layer.output in self.keras_model.losses:
                 continue
             self.keras_model.add_loss(
-                tf.reduce_mean(layer.output, keep_dims=True))
+                tf.reduce_mean(layer.output, keepdims=True))
 
         # Add L2 Regularization
         # Skip gamma and beta weights of batch normalization layers.
@@ -2938,7 +2941,7 @@ class MaskRCNN():
             layer = self.keras_model.get_layer(name)
             self.keras_model.metrics_names.append(name)
             self.keras_model.metrics.append(tf.reduce_mean(
-                layer.output, keep_dims=True))
+                layer.output, keepdims=True))
 
     def set_trainable(self, layer_regex, keras_model=None, indent=0, verbose=1):
         """Sets model layers as trainable if their names match
