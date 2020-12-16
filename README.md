@@ -1,6 +1,8 @@
 Mask RCNN for Human Pose Estimation
 -----------------------------------
 
+Update LukasStu: Updated Code to run with tf2.1 and tf.keras
+
 The original code is from "https://github.com/matterport/Mask_RCNN" on Python 3, Keras, and TensorFlow. The code reproduce the work of "https://arxiv.org/abs/1703.06870" for human pose estimation.
 This project aims to addressing the [issue#2][1]. 
 When I start it, I refer to another project by [@RodrigoGantier][2] .
