@@ -225,7 +225,7 @@ def clip_boxes_graph(boxes, window):
     return clipped
 
 
-class ProposalLayer(KE.Layer):
+class ProposalLayer(KL.Layer):
     """Receives anchor scores and selects a subset to pass as proposals
     to the second stage. Filtering is done based on anchor scores and
     non-max suppression to remove overlaps. It also applies bounding
@@ -1045,7 +1045,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     print(tf.squeeze(tf.dtypes.cast([tf.gather(refined_rois, keep)],tf.float32),axis=0))
     detections = tf.concat([
         tf.squeeze(tf.dtypes.cast([tf.gather(refined_rois, keep)],tf.float32),axis=0),
-        tf.squeeze(tf.dtypes.cast([tf.gather(class_ids, keep)],tf.float32)[..., tf.newaxis],axis=0),
+        tf.dtypes.cast([tf.gather(class_ids, keep)],tf.float32),
         tf.gather(class_scores, keep)[..., tf.newaxis]
         ], axis=1)
 
@@ -2665,8 +2665,7 @@ class MaskRCNN():
         rpn_class_logits, rpn_class, rpn_bbox = outputs
         print("rpn_class: ",rpn_class)
         print("rpn_bbox: ",rpn_bbox)
-        print("anchors: ",anchors)
-        
+                
         # Generate proposals
         # Proposals are [batch, N, (y1, x1, y2, x2)] in normalized coordinates
         # and zero padded.
@@ -2811,7 +2810,7 @@ class MaskRCNN():
 
             #shape: Batch, N_ROI, Number_Keypoint, height*width
             keypoint_mcrcnn_prob = KL.Activation("softmax", name="mrcnn_prob")(keypoint_mrcnn)
-            model = KM.Model([input_image, input_image_meta, input_anchors],
+            model = KM.Model([input_image, input_image_meta],
                              [detections, mrcnn_class, mrcnn_bbox, rpn_rois, rpn_class, rpn_bbox, mrcnn_mask, keypoint_mcrcnn_prob],
                              name='keypoint_mask_rcnn')
             #model.summary()
