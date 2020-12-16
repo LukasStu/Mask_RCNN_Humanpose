@@ -1401,13 +1401,9 @@ def rpn_bbox_loss_graph(config, target_bbox, rpn_match, rpn_bbox):
     target_bbox = batch_pack_graph(target_bbox, batch_counts,
                                    config.IMAGES_PER_GPU)
 
-    # TODO: use smooth_l1_loss() rather than reimplementing here
-    #       to reduce code duplication
-    diff = K.abs(target_bbox - rpn_bbox)
-    less_than_one = K.cast(K.less(diff, 1.0), "float32")
-    loss = (less_than_one * 0.5 * diff**2) + (1 - less_than_one) * (diff - 0.5)
+    loss = smooth_l1_loss(target_bbox, rpn_bbox)
 
-    loss = K.switch(tf.size(loss) > 0, K.mean(loss), tf.constant(0.0))
+    loss = K.switch(tf.size(input=loss) > 0, K.mean(loss), tf.constant(0.0))
     return loss
 
 
@@ -1424,7 +1420,7 @@ def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
     """
     target_class_ids = tf.cast(target_class_ids, 'int64')
     # Find predictions of classes that are not in the dataset.
-    pred_class_ids = tf.argmax(pred_class_logits, axis=2)
+    pred_class_ids = tf.argmax(input=pred_class_logits, axis=2)
     # TODO: Update this line to work with batch > 1. Right now it assumes all
     #       images in a batch have the same active_class_ids
     pred_active = tf.gather(active_class_ids[0], pred_class_ids)
@@ -1439,8 +1435,7 @@ def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
 
     # Computer loss mean. Use only predictions that contribute
     # to the loss to get a correct mean.
-    loss = tf.reduce_sum(loss) / tf.reduce_sum(pred_active)
-    loss = K.reshape(loss, [1, 1])
+    loss = tf.reduce_sum(input_tensor=loss) / tf.reduce_sum(input_tensor=pred_active)
     return loss
 
 
@@ -1457,7 +1452,7 @@ def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
     pred_bbox = K.reshape(pred_bbox, (-1, K.int_shape(pred_bbox)[2], 4))
 
     # Only positive ROIs contribute to the loss. And only
-    # the right class_id of each ROI. Get their indicies.
+    # the right class_id of each ROI. Get their indices.
     positive_roi_ix = tf.compat.v1.where(target_class_ids > 0)[:, 0]
     positive_roi_class_ids = tf.cast(
         tf.gather(target_class_ids, positive_roi_ix), tf.int64)
@@ -1472,7 +1467,6 @@ def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
                     smooth_l1_loss(y_true=target_bbox, y_pred=pred_bbox),
                     tf.constant(0.0))
     loss = K.mean(loss)
-    loss = K.reshape(loss, [1, 1])
     return loss
 
 
@@ -1514,7 +1508,6 @@ def mrcnn_mask_loss_graph(target_masks, target_class_ids, pred_masks):
                     K.binary_crossentropy(target=y_true, output=y_pred),
                     tf.constant(0.0))
     loss = K.mean(loss)
-    loss = K.reshape(loss, [1, 1])
     return loss
 
 def keypoint_weight_loss_graph(target_keypoint_weight, pred_class, target_class_ids):
@@ -1661,7 +1654,7 @@ def keypoint_mrcnn_mask_loss_graph(target_keypoints, target_keypoint_weights, ta
                         )
     else:
         loss = K.mean(loss)
-    loss = tf.reshape(loss,[1,1])
+    #loss = tf.reshape(loss,[1,1])
 
     return loss
 
@@ -2908,31 +2901,35 @@ class MaskRCNN():
         metrics. Then calls the Keras compile() function.
         """
         # Optimizer object
-        optimizer = keras.optimizers.SGD(lr=learning_rate, momentum=momentum,
-                                         clipnorm=5.0)
+        optimizer = keras.optimizers.SGD(
+            lr=learning_rate, momentum=momentum,
+            clipnorm=self.config.GRADIENT_CLIP_NORM)
         # Add Losses
-        # First, clear previously set losses to avoid duplication
-        self.keras_model._losses = []
-        self.keras_model._per_input_losses = {}
-        loss_names = ["rpn_class_loss", "rpn_bbox_loss",
-                      "mrcnn_class_loss", "mrcnn_bbox_loss", "keypoint_mrcnn_mask_loss", "mrcnn_mask_loss"]
+        loss_names = [
+            "rpn_class_loss",  "rpn_bbox_loss",
+            "mrcnn_class_loss", "mrcnn_bbox_loss","keypoint_mrcnn_mask_loss", "mrcnn_mask_loss"]
         for name in loss_names:
             layer = self.keras_model.get_layer(name)
+            print("Layer:",layer)
             if layer.output in self.keras_model.losses:
                 continue
-            self.keras_model.add_loss(
-                tf.reduce_mean(layer.output, keepdims=True))
+            loss = (
+                tf.reduce_mean(input_tensor=layer.output, keepdims=True)
+                * self.config.LOSS_WEIGHTS.get(name, 1.))
+            self.keras_model.add_loss(loss)
 
         # Add L2 Regularization
         # Skip gamma and beta weights of batch normalization layers.
-        reg_losses = [keras.regularizers.l2(self.config.WEIGHT_DECAY)(w) / tf.cast(tf.size(w), tf.float32)
-                      for w in self.keras_model.trainable_weights
-                      if 'gamma' not in w.name and 'beta' not in w.name]
+        reg_losses = [
+            keras.regularizers.l2(self.config.WEIGHT_DECAY)(w) / tf.cast(tf.size(input=w), tf.float32)
+            for w in self.keras_model.trainable_weights
+            if 'gamma' not in w.name and 'beta' not in w.name]
         self.keras_model.add_loss(tf.add_n(reg_losses))
-
+        print("Loss Placeholder: ",[None] * len(self.keras_model.outputs))
         # Compile
-        self.keras_model.compile(optimizer=optimizer, loss=[
-                                 None] * len(self.keras_model.outputs))
+        self.keras_model.compile(
+            optimizer=optimizer,
+            loss=[None] * len(self.keras_model.outputs))
 
         # Add metrics for losses
         for name in loss_names:
@@ -2940,8 +2937,10 @@ class MaskRCNN():
                 continue
             layer = self.keras_model.get_layer(name)
             self.keras_model.metrics_names.append(name)
-            self.keras_model.metrics.append(tf.reduce_mean(
-                layer.output, keepdims=True))
+            loss = (
+                tf.reduce_mean(input_tensor=layer.output, keepdims=True)
+                * self.config.LOSS_WEIGHTS.get(name, 1.))
+            self.keras_model.add_metric(loss, name=name, aggregation='mean')
 
     def set_trainable(self, layer_regex, keras_model=None, indent=0, verbose=1):
         """Sets model layers as trainable if their names match
