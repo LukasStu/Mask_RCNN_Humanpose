@@ -976,9 +976,9 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     refined_rois = clip_boxes_graph(refined_rois, window)
     # Round and cast to int since we're deadling with pixels now
     refined_rois = tf.dtypes.cast([tf.math.rint(refined_rois)],tf.int32)
-    print('refinded_rois: ',refined_rois)
+    # get rid of first dimension
     refined_rois = tf.squeeze(refined_rois, axis=0)
-    print('refinded_rois_squeezed: ',refined_rois)
+
 
     # TODO: Filter out boxes with zero area
 
@@ -1039,10 +1039,6 @@ def refine_detections_graph(rois, probs, deltas, window, config):
 
     # Arrange output as [N, (y1, x1, y2, x2, class_id, score)]
     # Coordinates are in image domain.
-    print('a',tf.dtypes.cast([tf.gather(refined_rois, keep)],tf.float32))
-    print('b',tf.dtypes.cast(tf.gather(class_ids, keep), tf.float32)[..., tf.newaxis])
-    print('c',tf.gather(class_scores, keep))
-    print(tf.squeeze(tf.dtypes.cast([tf.gather(refined_rois, keep)],tf.float32),axis=0))
     detections = tf.concat([
         tf.squeeze(tf.dtypes.cast([tf.gather(refined_rois, keep)],tf.float32),axis=0),
         tf.dtypes.cast([tf.gather(class_ids, keep)],tf.float32),
@@ -1081,7 +1077,6 @@ class DetectionLayer(KL.Layer):
 
         # Run detection refinement graph on each item in the batch
         _, _, window, _ = parse_image_meta_graph(image_meta)
-        print('Window: ',window)
         outputs = utils.batch_slice(
             [rois, mrcnn_class, mrcnn_bbox, window],
             lambda x, y, w, z: refine_detections_graph(x, y,  w, z, self.config),
@@ -1191,7 +1186,6 @@ def fpn_classifier_graph(rois, feature_maps,
     # Shape: [batch, num_boxes, pool_height, pool_width, channels]
     x = PyramidROIAlign([pool_size, pool_size], image_shape,
                         name="roi_align_classifier")([rois] + feature_maps)
-    print("x im fpn_classifier_graph: ",K.int_shape(x))
     # Two 1024 FC layers (implemented with Conv2D for consistency)
     x = KL.TimeDistributed(KL.Conv2D(1024, (pool_size, pool_size), padding="valid"),
                            name="mrcnn_class_conv1")(x)
@@ -1218,7 +1212,6 @@ def fpn_classifier_graph(rois, feature_maps,
                            name='mrcnn_bbox_fc')(shared)
     # Reshape to [batch, boxes, num_classes, (dy, dx, log(dh), log(dw))]
     s = K.int_shape(x)
-    print("s im fpn_classifier_grapf: ",s)
     #mrcnn_bbox = KL.Reshape((s[1], num_classes, 4), name="mrcnn_bbox")(x)
     if s[1] is None:
         mrcnn_bbox = KL.Reshape((-1, num_classes, 4), name="mrcnn_bbox")(x)
@@ -2557,7 +2550,6 @@ class MaskRCNN():
         input_image = KL.Input(
             shape=config.IMAGE_SHAPE.tolist(), name="input_image")
         input_image_meta = KL.Input(shape=[None], name="input_image_meta")
-        print(input_image)
         if mode == "training":
             # RPN GT
             input_rpn_match = KL.Input(
@@ -2634,7 +2626,6 @@ class MaskRCNN():
         # Note that P6 is used in RPN, but not in the classifier heads.
         rpn_feature_maps = [P2, P3, P4, P5, P6]
         mrcnn_feature_maps = [P2, P3, P4, P5]
-        print(rpn_feature_maps)
         # Generate Anchors
         self.anchors = utils.generate_pyramid_anchors(config.RPN_ANCHOR_SCALES,
                                                       config.RPN_ANCHOR_RATIOS,
@@ -2659,8 +2650,6 @@ class MaskRCNN():
                    for o, n in zip(outputs, output_names)]
 
         rpn_class_logits, rpn_class, rpn_bbox = outputs
-        print("rpn_class: ",rpn_class)
-        print("rpn_bbox: ",rpn_bbox)
                 
         # Generate proposals
         # Proposals are [batch, N, (y1, x1, y2, x2)] in normalized coordinates
@@ -2780,10 +2769,6 @@ class MaskRCNN():
             # output is
             #   detections: [batch, num_detections, (y1, x1, y2, x2, class_id, score)] in image coordinates
             #   keypoint_weights: [batch, num_detections, num_keypoints]
-            print("rpn_rois: ",K.int_shape(rpn_rois))
-            print("mrcnn_class: ",K.int_shape(mrcnn_class))
-            print("mrcnn_bbox: ",K.int_shape(mrcnn_bbox))
-            print("input_image_meta: ",K.int_shape(input_image_meta))
             detections = DetectionLayer(config, name="mrcnn_detection")(
                 [rpn_rois, mrcnn_class, mrcnn_bbox,input_image_meta])
 
@@ -2925,7 +2910,7 @@ class MaskRCNN():
             for w in self.keras_model.trainable_weights
             if 'gamma' not in w.name and 'beta' not in w.name]
         self.keras_model.add_loss(tf.add_n(reg_losses))
-        print("Loss Placeholder: ",[None] * len(self.keras_model.outputs))
+
         # Compile
         self.keras_model.compile(
             optimizer=optimizer,
@@ -2960,7 +2945,6 @@ class MaskRCNN():
         for layer in layers:
             # Is the layer a model?
             if layer.__class__.__name__ == 'Model':
-                print("In model: ", layer.name)
                 self.set_trainable(
                     layer_regex, keras_model=layer, indent=indent + 4)
                 continue
