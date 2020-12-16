@@ -76,9 +76,6 @@ class Config(object):
     # How many anchors per image to use for RPN training
     RPN_TRAIN_ANCHORS_PER_IMAGE = 256
 
-    # ROIs kept after tf.nn.top_k and before non-maximum suppression
-    PRE_NMS_LIMIT = 6000
-
     # ROIs kept after non-maximum supression (training and inference)
     POST_NMS_ROIS_TRAINING = 2000
     POST_NMS_ROIS_INFERENCE = 1000
