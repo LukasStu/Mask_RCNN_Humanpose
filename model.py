@@ -2795,7 +2795,7 @@ class MaskRCNN():
                              [detections, mrcnn_class, mrcnn_bbox, rpn_rois, rpn_class, rpn_bbox, mrcnn_mask, keypoint_mcrcnn_prob],
                              name='keypoint_mask_rcnn')
             #model.summary()
-            #keras.utils.plot_model(model, "my_first_model_with_shape_info.png", show_shapes=True)
+            #keras.utils.plot_model(model, "inference_model_tfkeras.png", show_shapes=True)
 
 
 
