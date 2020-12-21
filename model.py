@@ -35,7 +35,7 @@ from distutils.version import LooseVersion
 assert LooseVersion(tf.__version__) >= LooseVersion("2.0")
 
 tf.compat.v1.disable_eager_execution()
-
+# Muss das sein? Geht auch ohne...
 
 ############################################################
 #  Utility Functions
