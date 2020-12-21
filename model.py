@@ -261,7 +261,7 @@ class ProposalLayer(KL.Layer):
 
         # Improve performance by trimming to top anchors by score
         # and doing the rest on the smaller subset.
-        pre_nms_limit = min(6000, self.anchors.shape[0])
+        pre_nms_limit = tf.math.minimum(6000, self.anchors.shape[0])
         ix = tf.nn.top_k(scores, pre_nms_limit, sorted=True,
                          name="top_anchors").indices
         scores = utils.batch_slice([scores, ix], lambda x, y: tf.gather(x, y),
@@ -2088,10 +2088,10 @@ def generate_random_rois(image_shape, count, gt_class_ids, gt_boxes):
         h = gt_y2 - gt_y1
         w = gt_x2 - gt_x1
         # random boundaries
-        r_y1 = max(gt_y1 - h, 0)
-        r_y2 = min(gt_y2 + h, image_shape[0])
-        r_x1 = max(gt_x1 - w, 0)
-        r_x2 = min(gt_x2 + w, image_shape[1])
+        r_y1 = tf.math.maximum(gt_y1 - h, 0)
+        r_y2 = tf.math.minimum(gt_y2 + h, image_shape[0])
+        r_x1 = tf.math.maximum(gt_x1 - w, 0)
+        r_x2 = tf.math.minimum(gt_x2 + w, image_shape[1])
 
         # To avoid generating boxes with zero area, we generate double what
         # we need and filter out the extra. If we get fewer valid boxes
@@ -3060,7 +3060,7 @@ class MaskRCNN():
         if os.name is 'nt':
             workers = 0
         else:
-            workers = max(self.config.BATCH_SIZE // 2, 2)
+            workers = tf.math.maximum(self.config.BATCH_SIZE // 2, 2)
 
         self.keras_model.fit_generator(
             train_generator,
@@ -3074,7 +3074,7 @@ class MaskRCNN():
             workers=workers,
             use_multiprocessing=True,
         )
-        self.epoch = max(self.epoch, epochs)
+        self.epoch = tf.math.maximum(self.epoch, epochs)
 
     def mold_inputs(self, images):
         """Takes a list of images and modifies them to the format expected
@@ -3145,7 +3145,7 @@ class MaskRCNN():
         # Compute scale and shift to translate coordinates to image domain.
         h_scale = image_shape[0] / (window[2] - window[0])
         w_scale = image_shape[1] / (window[3] - window[1])
-        scale = min(h_scale, w_scale)
+        scale = tf.math.minimum(h_scale, w_scale)
         shift = window[:2]  # y, x
         scales = np.array([scale, scale, scale, scale])
         shifts = np.array([shift[0], shift[1], shift[0], shift[1]])
@@ -3208,7 +3208,7 @@ class MaskRCNN():
         # Compute scale and shift to translate coordinates to image domain.
         h_scale = image_shape[0] / (window[2] - window[0])
         w_scale = image_shape[1] / (window[3] - window[1])
-        scale = min(h_scale, w_scale)
+        scale = tf.math.minimum(h_scale, w_scale)
         shift = window[:2]  # y, x
         scales = np.array([scale, scale, scale, scale])
         shifts = np.array([shift[0], shift[1], shift[0], shift[1]])
