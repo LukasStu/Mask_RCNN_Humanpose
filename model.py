@@ -47,10 +47,12 @@ def log(text, array=None):
     """
     if array is not None:
         text = text.ljust(25)
-        text += ("shape: {:20}  min: {:10.5f}  max: {:10.5f}".format(
-            str(array.shape),
-            array.min() if array.size else "",
-            array.max() if array.size else ""))
+        text += ("shape: {:20}  ".format(str(array.shape)))
+        if array.size:
+            text += ("min: {:10.5f}  max: {:10.5f}".format(array.min(),array.max()))
+        else:
+            text += ("min: {:10}  max: {:10}".format("",""))
+        text += "  {}".format(array.dtype)
     print(text)
 
 
@@ -968,16 +970,20 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     # Shape: [boxes, (y1, x1, y2, x2)] in normalized coordinates
     refined_rois = apply_box_deltas_graph(
         rois, deltas_specific * config.BBOX_STD_DEV)
+    print("refined rois after apply box deltas",refined_rois)
     # Convert coordiates to image domain
     # TODO: better to keep them normalized until later
     height, width = config.IMAGE_SHAPE[:2]
     refined_rois *= tf.constant([height, width, height, width], dtype=tf.float32)
     # Clip boxes to image window
     refined_rois = clip_boxes_graph(refined_rois, window)
+    print('refinded_rois after clip boxes: ',refined_rois)
     # Round and cast to int since we're deadling with pixels now
-    refined_rois = tf.dtypes.cast([tf.math.rint(refined_rois)],tf.int32)
+    refined_rois = tf.dtypes.cast(tf.math.rint(refined_rois),tf.int32)
+    print('refinded_rois after rint: ',refined_rois)
     # get rid of first dimension
-    refined_rois = tf.squeeze(refined_rois,axis=0)
+    # refined_rois = tf.squeeze(refined_rois,axis=0)
+    # oder rint weg?
 
 
     # TODO: Filter out boxes with zero area
@@ -996,7 +1002,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     pre_nms_class_ids = tf.gather(class_ids, keep)
     pre_nms_scores = tf.gather(class_scores, keep)
     pre_nms_rois = tf.gather(refined_rois,   keep)
-    pre_nms_rois = tf.squeeze(pre_nms_rois,axis=0)
+    #pre_nms_rois = tf.squeeze(pre_nms_rois,axis=0)
     # pre_nms_keypoint_weights = tf.gather(keypoint_weights, keep)
     unique_pre_nms_class_ids = tf.unique(pre_nms_class_ids)[0]
 
@@ -1005,8 +1011,12 @@ def refine_detections_graph(rois, probs, deltas, window, config):
         # Indices of ROIs of the given class
         ixs = tf.compat.v1.where(tf.equal(pre_nms_class_ids, class_id))[:, 0]
         # Apply NMS
+        print("a:",tf.gather(pre_nms_rois, ixs))
+        print("b:",tf.dtypes.cast([tf.gather(pre_nms_rois, ixs)],tf.float32))
+        print("c:",tf.dtypes.cast(tf.gather(pre_nms_rois, ixs),tf.float32))
+
         class_keep = tf.image.non_max_suppression(
-                tf.dtypes.cast([tf.gather(pre_nms_rois, ixs)],tf.float32),
+                tf.dtypes.cast(tf.gather(pre_nms_rois, ixs),tf.float32),
                 tf.gather(pre_nms_scores, ixs),
                 max_output_size=config.DETECTION_MAX_INSTANCES,
                 iou_threshold=config.DETECTION_NMS_THRESHOLD)
@@ -1040,16 +1050,17 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     # Arrange output as [N, (y1, x1, y2, x2, class_id, score)]
     # Coordinates are in image domain.
     detections = tf.concat([
-        tf.squeeze(tf.dtypes.cast([tf.gather(refined_rois, keep)],tf.float32),axis=0),
-        tf.dtypes.cast([tf.gather(class_ids, keep)],tf.float32),
+        tf.dtypes.cast(tf.gather(refined_rois, keep), tf.float32),
+        tf.dtypes.cast(tf.gather(class_ids, keep), tf.float32)[..., tf.newaxis],
         tf.gather(class_scores, keep)[..., tf.newaxis]
         ], axis=1)
 
     # Pad with zeros if detections < DETECTION_MAX_INSTANCES
     gap = config.DETECTION_MAX_INSTANCES - tf.shape(input=detections)[0]
     detections = tf.pad(detections, [(0, gap), (0, 0)], "CONSTANT")
-
+    print("detections vor reshape: ",detections)
     detections = tf.reshape(detections,[config.DETECTION_MAX_INSTANCES,6])
+    print("detections nach reshape: ",detections)
     return detections
 
 
@@ -1079,7 +1090,7 @@ class DetectionLayer(KL.Layer):
         _, _, window, _ = parse_image_meta_graph(image_meta)
         outputs = utils.batch_slice(
             [rois, mrcnn_class, mrcnn_bbox, window],
-            lambda x, y, w, z: refine_detections_graph(x, y,  w, z, self.config),
+            lambda x, y, w, z: refine_detections_graph(x, y, w, z, self.config),
             self.config.IMAGES_PER_GPU)
 
         # Reshape output
@@ -2663,6 +2674,7 @@ class MaskRCNN():
                                  name="ROI",
                                  anchors=self.anchors,
                                  config=config)([rpn_class, rpn_bbox])
+        print("rpn_pois: ",rpn_rois)
 
         if mode == "training":
             # Class ID mask to mark class IDs supported by the dataset the image
@@ -2766,7 +2778,9 @@ class MaskRCNN():
             mrcnn_class_logits, mrcnn_class, mrcnn_bbox =\
                 fpn_classifier_graph(rpn_rois, mrcnn_feature_maps, config.IMAGE_SHAPE,
                                      config.POOL_SIZE, config.NUM_CLASSES)
-
+            print(mrcnn_class)
+            print(mrcnn_bbox)
+            print(input_image_meta)
             # Detections
             # output is
             #   detections: [batch, num_detections, (y1, x1, y2, x2, class_id, score)] in image coordinates
@@ -3145,7 +3159,7 @@ class MaskRCNN():
         # Compute scale and shift to translate coordinates to image domain.
         h_scale = image_shape[0] / (window[2] - window[0])
         w_scale = image_shape[1] / (window[3] - window[1])
-        scale = tf.math.minimum(h_scale, w_scale)
+        scale = min(h_scale, w_scale)
         shift = window[:2]  # y, x
         scales = np.array([scale, scale, scale, scale])
         shifts = np.array([shift[0], shift[1], shift[0], shift[1]])
@@ -3208,11 +3222,13 @@ class MaskRCNN():
         # Compute scale and shift to translate coordinates to image domain.
         h_scale = image_shape[0] / (window[2] - window[0])
         w_scale = image_shape[1] / (window[3] - window[1])
-        scale = tf.math.minimum(h_scale, w_scale)
+        scale = min(h_scale, w_scale)
         shift = window[:2]  # y, x
         scales = np.array([scale, scale, scale, scale])
         shifts = np.array([shift[0], shift[1], shift[0], shift[1]])
-
+        print("boxes:",boxes)
+        print("shifts:",shift)
+        print("scales:",scales.tolist())
         # Translate bounding boxes to image domain
         boxes = np.multiply(boxes - shifts, scales).astype(np.int32)
         # print("boxes:",boxes)
