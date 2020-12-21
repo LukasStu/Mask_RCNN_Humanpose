@@ -970,21 +970,14 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     # Shape: [boxes, (y1, x1, y2, x2)] in normalized coordinates
     refined_rois = apply_box_deltas_graph(
         rois, deltas_specific * config.BBOX_STD_DEV)
-    print("refined rois after apply box deltas",refined_rois)
     # Convert coordiates to image domain
     # TODO: better to keep them normalized until later
     height, width = config.IMAGE_SHAPE[:2]
     refined_rois *= tf.constant([height, width, height, width], dtype=tf.float32)
     # Clip boxes to image window
     refined_rois = clip_boxes_graph(refined_rois, window)
-    print('refinded_rois after clip boxes: ',refined_rois)
     # Round and cast to int since we're deadling with pixels now
     refined_rois = tf.dtypes.cast(tf.math.rint(refined_rois),tf.int32)
-    print('refinded_rois after rint: ',refined_rois)
-    # get rid of first dimension
-    # refined_rois = tf.squeeze(refined_rois,axis=0)
-    # oder rint weg?
-
 
     # TODO: Filter out boxes with zero area
 
@@ -1011,10 +1004,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
         # Indices of ROIs of the given class
         ixs = tf.compat.v1.where(tf.equal(pre_nms_class_ids, class_id))[:, 0]
         # Apply NMS
-        print("a:",tf.gather(pre_nms_rois, ixs))
-        print("b:",tf.dtypes.cast([tf.gather(pre_nms_rois, ixs)],tf.float32))
-        print("c:",tf.dtypes.cast(tf.gather(pre_nms_rois, ixs),tf.float32))
-
+     
         class_keep = tf.image.non_max_suppression(
                 tf.dtypes.cast(tf.gather(pre_nms_rois, ixs),tf.float32),
                 tf.gather(pre_nms_scores, ixs),
@@ -1058,9 +1048,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     # Pad with zeros if detections < DETECTION_MAX_INSTANCES
     gap = config.DETECTION_MAX_INSTANCES - tf.shape(input=detections)[0]
     detections = tf.pad(detections, [(0, gap), (0, 0)], "CONSTANT")
-    print("detections vor reshape: ",detections)
     detections = tf.reshape(detections,[config.DETECTION_MAX_INSTANCES,6])
-    print("detections nach reshape: ",detections)
     return detections
 
 
@@ -2674,7 +2662,6 @@ class MaskRCNN():
                                  name="ROI",
                                  anchors=self.anchors,
                                  config=config)([rpn_class, rpn_bbox])
-        print("rpn_pois: ",rpn_rois)
 
         if mode == "training":
             # Class ID mask to mark class IDs supported by the dataset the image
@@ -2778,9 +2765,7 @@ class MaskRCNN():
             mrcnn_class_logits, mrcnn_class, mrcnn_bbox =\
                 fpn_classifier_graph(rpn_rois, mrcnn_feature_maps, config.IMAGE_SHAPE,
                                      config.POOL_SIZE, config.NUM_CLASSES)
-            print(mrcnn_class)
-            print(mrcnn_bbox)
-            print(input_image_meta)
+
             # Detections
             # output is
             #   detections: [batch, num_detections, (y1, x1, y2, x2, class_id, score)] in image coordinates
@@ -2911,7 +2896,6 @@ class MaskRCNN():
             "mrcnn_class_loss", "mrcnn_bbox_loss","keypoint_mrcnn_mask_loss", "mrcnn_mask_loss"]
         for name in loss_names:
             layer = self.keras_model.get_layer(name)
-            print("Layer:",layer)
             if layer.output in self.keras_model.losses:
                 continue
             loss = (
@@ -3226,9 +3210,7 @@ class MaskRCNN():
         shift = window[:2]  # y, x
         scales = np.array([scale, scale, scale, scale])
         shifts = np.array([shift[0], shift[1], shift[0], shift[1]])
-        print("boxes:",boxes)
-        print("shifts:",shift)
-        print("scales:",scales.tolist())
+
         # Translate bounding boxes to image domain
         boxes = np.multiply(boxes - shifts, scales).astype(np.int32)
         # print("boxes:",boxes)
