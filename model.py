@@ -112,7 +112,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block,
     """conv_block is the block that has a conv layer at shortcut
     # Arguments
         input_tensor: input tensor
-        kernel_size: defualt 3, the kernel size of middle conv layer at main path
+        kernel_size: default 3, the kernel size of middle conv layer at main path
         filters: list of integers, the nb_filters of 3 conv layer at main path
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
@@ -232,8 +232,8 @@ class ProposalLayer(KL.Layer):
     box refinement deltas to anchors.
 
     Inputs:
-        rpn_probs: [batch, anchors, (bg prob, fg prob)]
-        rpn_bbox: [batch, anchors, (dy, dx, log(dh), log(dw))]
+        rpn_probs: [batch, num_anchors, (bg prob, fg prob)]
+        rpn_bbox: [batch, num_anchors, (dy, dx, log(dh), log(dw))]
 
     Returns:
         Proposals in normalized coordinates [batch, rois, (y1, x1, y2, x2)]
@@ -242,7 +242,7 @@ class ProposalLayer(KL.Layer):
     def __init__(self, proposal_count, nms_threshold, anchors,
                  config=None, **kwargs):
         """
-        anchors: [N, (y1, x1, y2, x2)] anchors defined in image coordinates
+        anchors: [num_anchors, (y1, x1, y2, x2)] anchors defined in image coordinates
         """
         super(ProposalLayer, self).__init__(**kwargs)
         self.config = config
@@ -977,7 +977,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     # Round and cast to int since we're deadling with pixels now
     refined_rois = tf.dtypes.cast([tf.math.rint(refined_rois)],tf.int32)
     # get rid of first dimension
-    refined_rois = tf.squeeze(refined_rois, axis=0)
+    refined_rois = tf.squeeze(refined_rois,axis=0)
 
 
     # TODO: Filter out boxes with zero area
@@ -996,7 +996,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     pre_nms_class_ids = tf.gather(class_ids, keep)
     pre_nms_scores = tf.gather(class_scores, keep)
     pre_nms_rois = tf.gather(refined_rois,   keep)
-    pre_nms_rois = tf.squeeze(pre_nms_rois, axis=0)
+    pre_nms_rois = tf.squeeze(pre_nms_rois,axis=0)
     # pre_nms_keypoint_weights = tf.gather(keypoint_weights, keep)
     unique_pre_nms_class_ids = tf.unique(pre_nms_class_ids)[0]
 
@@ -1102,9 +1102,9 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
                    every pixel in the feature map), or 2 (every other pixel).
 
     Returns:
-        rpn_logits: [batch, H, W, 2] Anchor classifier logits (before softmax)
-        rpn_probs: [batch, H, W, 2] Anchor classifier probabilities.
-        rpn_bbox: [batch, H, W, (dy, dx, log(dh), log(dw))] Deltas to be
+        rpn_class_logits: [batch, H * W * anchors_per_location, 2] Anchor classifier logits (before softmax)
+        rpn_probs: [batch, H * W * anchors_per_location, 2] Anchor classifier probabilities.
+        rpn_bbox: [batch, H * W * anchors_per_location, (dy, dx, log(dh), log(dw))] Deltas to be
                   applied to anchors.
     """
     # TODO: check if stride of 2 causes alignment issues if the featuremap
@@ -2615,6 +2615,7 @@ class MaskRCNN():
             KL.UpSampling2D(size=(2, 2), name="fpn_p3upsampled")(P3),
             KL.Conv2D(256, (1, 1), name='fpn_c2p2')(C2)])
         # Attach 3x3 conv to all P layers to get the final feature maps.
+        # (Reducing aliasing effect of upsamling)
         P2 = KL.Conv2D(256, (3, 3), padding="SAME", name="fpn_p2")(P2)
         P3 = KL.Conv2D(256, (3, 3), padding="SAME", name="fpn_p3")(P3)
         P4 = KL.Conv2D(256, (3, 3), padding="SAME", name="fpn_p4")(P4)
@@ -2626,6 +2627,7 @@ class MaskRCNN():
         # Note that P6 is used in RPN, but not in the classifier heads.
         rpn_feature_maps = [P2, P3, P4, P5, P6]
         mrcnn_feature_maps = [P2, P3, P4, P5]
+        
         # Generate Anchors
         self.anchors = utils.generate_pyramid_anchors(config.RPN_ANCHOR_SCALES,
                                                       config.RPN_ANCHOR_RATIOS,
