@@ -16,10 +16,9 @@ import tensorflow as tf
 import scipy.misc
 import skimage.color
 import skimage.io
-import skimage.transform
 import urllib.request
 import shutil
-
+from skimage.transform import resize
 # URL from which to download the latest COCO trained weights
 COCO_MODEL_URL = "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5"
 
@@ -495,7 +494,7 @@ def resize_image(image, min_dim=None, max_dim=None, padding=False):
             scale = max_dim / image_max
     # Resize image and mask
     if scale != 1:
-        image = scipy.misc.imresize(
+        image = resize(
             image, (round(h * scale), round(w * scale)))
     # Need padding?
     if padding:
@@ -636,7 +635,7 @@ def minimize_mask(bbox, mask, mini_shape):
         m = m[y1:y2, x1:x2]
         if m.size == 0:
             raise Exception("Invalid bounding box with area of zero")
-        m = scipy.misc.imresize(m.astype(float), mini_shape, interp='bilinear')
+        m = resize(m.astype(float), mini_shape, interp='wrap')
         # _positon = np.argmax(m)  # get the index of max in the a
         # m_index, n_index = divmod(_positon, mini_shape[0])
         # print("Max in oringal:", (m_index, n_index), m[m_index, n_index])
@@ -730,7 +729,7 @@ def expand_mask(bbox, mini_mask, image_shape):
         y1, x1, y2, x2 = bbox[i][:4]
         h = y2 - y1
         w = x2 - x1
-        m = scipy.misc.imresize(m.astype(float), (h, w), interp='bilinear')
+        m = resize(m.astype(float), (h, w), interp='wrap')
         # _positon = np.argmax(m)  # get the index of max in the a
         # m_index, n_index = divmod(_positon, w)
         # print("Max in resize:", (m_index, n_index), m[m_index, n_index])
@@ -754,8 +753,8 @@ def unmold_mask(mask, bbox, image_shape):
     """
     threshold = 0.5
     y1, x1, y2, x2 = bbox
-    mask = scipy.misc.imresize(
-        mask, (y2 - y1, x2 - x1), interp='bilinear').astype(np.float32) / 255.0
+    mask = resize(
+        mask, (y2 - y1, x2 - x1), interp='wrap').astype(np.float32) / 255.0
     mask = np.where(mask >= threshold, 1, 0).astype(np.uint8)
 
     # Put the mask in the right location.
