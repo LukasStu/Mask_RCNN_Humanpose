@@ -251,6 +251,14 @@ class ProposalLayer(KL.Layer):
         self.proposal_count = proposal_count
         self.nms_threshold = nms_threshold
         self.anchors = anchors.astype(np.float32)
+    
+    def get_config(self):
+        config = super().get_config()
+        config["config"] = self.config.to_dict()
+        config["proposal_count"] = self.proposal_count
+        config["nms_threshold"] = self.nms_threshold
+        config["anchors"] = self.anchors
+        return config
 
     def call(self, inputs):
         # Box Scores. Use the foreground class confidence. [Batch, num_rois]
@@ -354,6 +362,12 @@ class PyramidROIAlign(KL.Layer):
         super(PyramidROIAlign, self).__init__(**kwargs)
         self.pool_shape = tuple(pool_shape)
         self.image_shape = tuple(image_shape)
+    
+    def get_config(self):
+        config = super().get_config()
+        config['pool_shape'] = self.pool_shape
+        config['image_shape'] = self.image_shape
+        return config
 
     def call(self, inputs):
         # Crop boxes [batch, num_boxes, (y1, x1, y2, x2)] in normalized coords
@@ -833,6 +847,11 @@ class DetectionKeypointTargetLayer(KL.Layer):
     def __init__(self, config, **kwargs):
         super(DetectionKeypointTargetLayer, self).__init__(**kwargs)
         self.config = config
+    
+    def get_config(self):
+        config = super().get_config()
+        config["config"] = self.config.to_dict()
+        return config
 
     def call(self, inputs):
         proposals = inputs[0]
@@ -896,7 +915,12 @@ class DetectionTargetLayer(KL.Layer):
     def __init__(self, config, **kwargs):
         super(DetectionTargetLayer, self).__init__(**kwargs)
         self.config = config
-
+    
+    def get_config(self):
+        config = super().get_config()
+        config["config"] = self.config.to_dict()
+        return config
+    
     def call(self, inputs):
         proposals = inputs[0]
         gt_class_ids = inputs[1]
@@ -1067,6 +1091,12 @@ class DetectionLayer(KL.Layer):
     def __init__(self, config=None, **kwargs):
         super(DetectionLayer, self).__init__(**kwargs)
         self.config = config
+    
+    
+    def get_config(self):
+        config = super().get_config()
+        config["config"] = self.config.to_dict()
+        return config
 
     def call(self, inputs):
         rois = inputs[0]
@@ -2958,7 +2988,7 @@ class MaskRCNN():
                 layer.layer.trainable = trainable
             else:
                 layer.trainable = trainable
-            # Print trainble layer names
+            # Print trainable layer names
             if trainable and verbose > 0:
                 log("{}{:20}   ({})".format(" " * indent, layer.name,
                                             layer.__class__.__name__))
@@ -3060,7 +3090,7 @@ class MaskRCNN():
         else:
             workers = tf.math.maximum(self.config.BATCH_SIZE // 2, 2)
 
-        self.keras_model.fit_generator(
+        self.keras_model.fit(
             train_generator,
             initial_epoch=self.epoch,
             epochs=epochs,
@@ -3072,7 +3102,7 @@ class MaskRCNN():
             workers=workers,
             use_multiprocessing=True,
         )
-        self.epoch = tf.math.maximum(self.epoch, epochs)
+        self.epoch = max(self.epoch, epochs)
 
     def mold_inputs(self, images):
         """Takes a list of images and modifies them to the format expected
@@ -3080,7 +3110,7 @@ class MaskRCNN():
         images: List of image matricies [height,width,depth]. Images can have
             different sizes.
 
-        Returns 3 Numpy matricies:
+        Returns 3 Numpy matrices:
         molded_images: [N, h, w, 3]. Images resized and normalized.
         image_metas: [N, length of meta data]. Details about each image.
         windows: [N, (y1, x1, y2, x2)]. The portion of the image that has the
@@ -3346,6 +3376,7 @@ class MaskRCNN():
                 "masks": final_masks
             })
         return results
+   
     def ancestor(self, tensor, name, checked=None):
         """Finds the ancestor of a TF tensor in the computation graph.
         tensor: TensorFlow symbolic tensor.

@@ -175,10 +175,17 @@ class Config(object):
               int(math.ceil(self.IMAGE_SHAPE[1] / stride))]
              for stride in self.BACKBONE_STRIDES])
 
+    def to_dict(self):
+        return {a: getattr(self, a)
+                for a in sorted(dir(self))
+                if not a.startswith("__") and not callable(getattr(self, a))}
+
     def display(self):
         """Display Configuration values."""
-        print("\nConfigurations Superlee:")
-        for a in dir(self):
-            if not a.startswith("__") and not callable(getattr(self, a)):
-                print("{:30} {}".format(a, getattr(self, a)))
+        print("\nConfigurations:")
+        for key, val in self.to_dict().items():
+            print(f"{key:30} {val}")
+        # for a in dir(self):
+        #     if not a.startswith("__") and not callable(getattr(self, a)):
+        #         print("{:30} {}".format(a, getattr(self, a)))
         print("\n")
