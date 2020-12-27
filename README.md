@@ -1,14 +1,13 @@
 Mask RCNN for Human Pose Estimation
 -----------------------------------
-## Project from SuperLee506. Upgraded to TF2.1, tf.keras
-
-The original code is from "https://github.com/matterport/Mask_RCNN".
-This code helped me a lot when switching to tf.keras "https://github.com/akTwelve/Mask_RCNN".
+# Project from SuperLee506. Upgraded to Tensorflow 2.1 and tf.keras
+* The original code is from "https://github.com/matterport/Mask_RCNN".
+* This code helped me a lot when switching to tf.keras "https://github.com/akTwelve/Mask_RCNN".
 
 
 # My Environment on Windows 10
-conda create -n tf21 python=3.7 git numpy scikit-image scipy Pillow cython h5py pandas opencv pydot tensorflow-gpu==2.1.0
-pip install git+https://github.com/philferriere/cocoapi.git#subdirectory=PythonAPI
+* conda create -n tf21 python=3.7 git numpy scikit-image scipy Pillow cython h5py pandas opencv pydot tensorflow-gpu==2.1.0
+* pip install git+https://github.com/philferriere/cocoapi.git#subdirectory=PythonAPI
 
 
 # Getting Started
