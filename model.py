@@ -238,7 +238,7 @@ class ProposalLayer(KL.Layer):
         rpn_bbox: [batch, num_anchors, (dy, dx, log(dh), log(dw))]
 
     Returns:
-        Proposals in normalized coordinates [batch, rois, (y1, x1, y2, x2)]
+        Proposals in normalized coordinates [batch, num_rois, (y1, x1, y2, x2)]
     """
 
     def __init__(self, proposal_count, nms_threshold, anchors,
@@ -342,7 +342,8 @@ class PyramidROIAlign(KL.Layer):
     """Implements ROI Pooling on multiple levels of the feature pyramid.
 
     Params:
-    - pool_shape: [height, width] of the output pooled regions. Usually [7, 7]
+    - pool_shape: [height, width] of the output pooled regions. Usually [7, 7],
+                  for keypoint detection it's usually [14, 14]
     - image_shape: [height, width, channels]. Shape of input image in pixels
 
     Inputs:
@@ -1335,6 +1336,7 @@ def build_fpn_keypoint_graph(rois, feature_maps,
     # Shape: [batch, num_rois, pool_height, pool_width, channels]
     x = PyramidROIAlign([pool_size, pool_size], image_shape,
                         name="roi_align_keypoint_mask")([rois] + feature_maps)
+    # Eight consecutive convs
     for i in range(8):
         x = KL.TimeDistributed(KL.Conv2D(512, (3, 3), padding="same"),
                                name="mrcnn_keypoint_mask_conv{}".format(i + 1))(x)
@@ -1342,7 +1344,7 @@ def build_fpn_keypoint_graph(rois, feature_maps,
         x = KL.TimeDistributed(BatchNorm(axis=3),
                                name='mrcnn_keypoint_mask_bn{}'.format(i + 1))(x)
         x = KL.Activation('relu')(x)
-
+    # Deconvolution
     x = KL.TimeDistributed(KL.Conv2DTranspose(num_keypoints, (2, 2), strides=2),
                            name="mrcnn_keypoint_mask_deconv")(x)
     x = KL.TimeDistributed(
@@ -1354,6 +1356,7 @@ def build_fpn_keypoint_graph(rois, feature_maps,
     # shape: batch_size, num_roi, num_keypoint, 56, 56
     x = KL.TimeDistributed(KL.Lambda(lambda x: tf.transpose(x,[0,3,1,2])), name="mrcnn_keypoint_mask_transpose")(x)
     s = K.int_shape(x)
+    
     if s[1] is None:
         x = KL.Reshape((-1, num_keypoints, -1), name='mrcnn_keypoint_mask_reshape')(x)
     else:
@@ -2713,7 +2716,7 @@ class MaskRCNN():
             # Subsamples proposals and generates target outputs for training
             # Note that proposal class IDs, gt_boxes and gt_masks are zero
             # padded. Equally, returned rois and targets are zero padded.
-            #Every rois corresond to one target
+            # Every rois corresond to one target
             # rois, target_class_ids, target_bbox, target_mask =\
             #     DetectionTargetLayer(config, name="proposal_targets")([
             #         target_rois, input_gt_class_ids, gt_boxes, input_gt_masks])
