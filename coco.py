@@ -47,7 +47,7 @@ import shutil
 
 from config import Config
 import utils
-import model as modellib
+import model_new as modellib
 
 # Root directory of the project
 ROOT_DIR = os.getcwd()
@@ -93,7 +93,7 @@ class CocoConfig(Config):
     RPN_TRAIN_ANCHORS_PER_IMAGE = 150
     USE_MINI_MASK = True
     MASK_POOL_SIZE = 14
-    KEYPOINT_MASK_POOL_SIZE = 7
+    KEYPOINT_MASK_POOL_SIZE = 14
     LEARNING_RATE = 0.002
     STEPS_PER_EPOCH = 1000
     WEIGHT_LOSS = True

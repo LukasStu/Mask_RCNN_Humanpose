@@ -20,88 +20,113 @@ import visualize
 from visualize import display_images
 import model_new as modellib
 from model_new import log
-
-
-ROOT_DIR = os.getcwd()
-#MODEL_DIR = os.path.join(ROOT_DIR, "mylogs")
-MODEL_DIR = "D:\Eigene Dateien\Dokumente\mylogs"
-# Local path to trained weights file
-#COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5") # matterport weights
-#COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose.h5") # superlee506 weights
-COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose_lu.h5") # Lukas weights
-
-# MS COCO Dataset
 import coco
 
+
+"""Directories to logs and pretrained models"""
+ROOT_DIR = os.getcwd()
+
+# TODO: Enter path where to save trained model
+# Ether root dir or full path
+#MODEL_DIR = os.path.join(ROOT_DIR, "mylogs")
+MODEL_DIR = "D:\Eigene Dateien\Dokumente\mylogs" 
+
+# TODO: Enter path to trained weights .h5 file
+#COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5") # matterport model
+#COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose.h5") # superlee506 model
+COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose_lu.h5") # Lukas model
+#COCO_MODEL_PATH = "last" # last trained .h5 file in "mylogs"
+
+# TODO: Enter your path to COCO images and annotations
+# coco/
+# ├─test2017/
+# ├─train2017/
+# ├─val2017/
+# ├─annotations/
+COCO_DIR = "D:/Eigene Dateien/Dokumente/coco"
+
+
+
+"""Training parameters and loading annotations"""
+# Hyperparameter settings
 class TrainingConfig(coco.CocoConfig):
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1 # changed to 1. GPU to small for 2 images
-    IMAGE_MAX_DIM = 512 # was 1024
+    IMAGE_MAX_DIM = 512 # changed to 512. GPU to small for 1024x1024 images
     # Mask-R CNN paper config
     KEYPOINT_MASK_POOL_SIZE = 14
     DETECTION_NMS_THRESHOLD = 0.5
 
 training_config = TrainingConfig()
 
-COCO_DIR = "D:/Eigene Dateien/Dokumente/coco"  # TODO: enter your own path here
-
 # Load dataset
 assert training_config.NAME == "coco"
+
 # Training dataset
 # load person keypoints dataset
 train_dataset_keypoints = coco.CocoDataset(task_type="person_keypoints")
 train_dataset_keypoints.load_coco(COCO_DIR, "train")
 train_dataset_keypoints.prepare()
 
-#Validation dataset
+# Validation dataset
+# load person keypoints dataset
 val_dataset_keypoints = coco.CocoDataset(task_type="person_keypoints")
 val_dataset_keypoints.load_coco(COCO_DIR, "val")
 val_dataset_keypoints.prepare()
 
+# Show number of training images
 print("Train Keypoints Image Count: {}".format(len(train_dataset_keypoints.image_ids)))
 print("Train Keypoints Class Count: {}".format(train_dataset_keypoints.num_classes))
 for i, info in enumerate(train_dataset_keypoints.class_info):
     print("{:3}. {:50}".format(i, info['name']))
-
+    
+# Show number of validations images
 print("Val Keypoints Image Count: {}".format(len(val_dataset_keypoints.image_ids)))
 print("Val Keypoints Class Count: {}".format(val_dataset_keypoints.num_classes))
 for i, info in enumerate(val_dataset_keypoints.class_info):
     print("{:3}. {:50}".format(i, info['name']))
+
+
+
     
-# Create model object in training mode.
+"""Create model object in training mode"""
 model = modellib.MaskRCNN(mode="training", model_dir=MODEL_DIR, config=training_config)
 
 # Load weights trained on MS-COCO
 
-# only necessary when loading matterport weights
+# necessary when loading matterport model
 # model.load_weights(COCO_MODEL_PATH, by_name=True,exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
 
-# only necessary when loading Superlee weights with old keypoint mask branch
+# necessary when loading Superlee model with old keypoint mask branch
 # model.load_weights(COCO_MODEL_PATH, by_name=True,exclude=["mrcnn_keypoint_mask_deconv"])
 
-# only necessary when loading Lukas weights
+# necessary when loading Lukas model
 model.load_weights(COCO_MODEL_PATH, by_name=True)
 
-# print("Loading weights from ", COCO_MODEL_PATH)
+print("Loading weights from ", COCO_MODEL_PATH)
+
+# Show model layers in training mode
 # model.keras_model.summary()
 
-# Training - Stage 1 #15 Epochs
-# print("Train heads")
-# model.train(train_dataset_keypoints, val_dataset_keypoints,
-#             learning_rate=training_config.LEARNING_RATE,
-#             epochs=15,
-#             layers='heads')
+
+"""Train model -starting from heads"""
+# Training - Stage 1
+print("Train heads")
+model.train(train_dataset_keypoints, val_dataset_keypoints,
+            learning_rate=training_config.LEARNING_RATE,
+            epochs=15,
+            layers='heads')
 # Training - Stage 2
 # Finetune layers from ResNet stage 4 and up
-#print("Training Resnet layer 4+")
-#model.train(train_dataset_keypoints, val_dataset_keypoints,
-#            learning_rate=training_config.LEARNING_RATE / 10,
-#            epochs=20,
-#            layers='4+')
+print("Training Resnet layer 4+")
+model.train(train_dataset_keypoints, val_dataset_keypoints,
+            learning_rate=training_config.LEARNING_RATE / 10,
+            epochs=20,
+            layers='4+')
 # Training - Stage 3
 # Finetune layers from ResNet stage 3 and up
-print("Training Resnet layer 3+") #100 Epochs
+print("Training Resnet layer 3+")
 model.train(train_dataset_keypoints, val_dataset_keypoints,
             learning_rate=training_config.LEARNING_RATE / 100,
-            epochs=98,
+            epochs=100,
             layers='all')

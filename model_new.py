@@ -34,8 +34,8 @@ import utils
 from distutils.version import LooseVersion
 assert LooseVersion(tf.__version__) >= LooseVersion("2.0")
 
-#tf.compat.v1.disable_eager_execution()
-# Muss das sein? Geht auch ohne...
+tf.compat.v1.disable_eager_execution()
+# Muss das sein? Wenn auskommentiert, Fehler bei compile()
 
 ############################################################
 #  Utility Functions
@@ -1148,7 +1148,7 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
     x = KL.Conv2D(2 * anchors_per_location, (1, 1), padding='valid',
                   activation='linear', name='rpn_class_raw')(shared)
 
-    # Reshape to [batch, anchors, 2]
+    # Reshape to [batch, num_anchors, 2]
     rpn_class_logits = KL.Lambda(
         lambda t: tf.reshape(t, [tf.shape(input=t)[0], -1, 2]))(x)
 
@@ -1161,7 +1161,7 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
     x = KL.Conv2D(anchors_per_location * 4, (1, 1), padding="valid",
                   activation='linear', name='rpn_bbox_pred')(shared)
 
-    # Reshape to [batch, anchors, 4]
+    # Reshape to [batch, num_anchors, 4]
     rpn_bbox = KL.Lambda(lambda t: tf.reshape(t, [tf.shape(input=t)[0], -1, 4]))(x)
 
     return [rpn_class_logits, rpn_probs, rpn_bbox]
@@ -2790,6 +2790,8 @@ class MaskRCNN():
                        rpn_rois, output_rois,
                        rpn_class_loss, rpn_bbox_loss, class_loss, bbox_loss, keypoint_loss, mask_loss]
                        # +  test_target_keypoint_mask for test the keypoint loss graph
+
+
 
             model = KM.Model(inputs, outputs, name='mask_keypoint_mrcnn')
 
