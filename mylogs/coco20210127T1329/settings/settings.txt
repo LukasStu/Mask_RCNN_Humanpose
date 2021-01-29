@@ -1,0 +1,24 @@
+Started with matterport model
+
+
+"""Train model -starting from heads"""
+# Training - Stage 1
+print("Train heads")
+model.train(train_dataset_keypoints, val_dataset_keypoints,
+            learning_rate=training_config.LEARNING_RATE,
+            epochs=15,
+            layers='heads')
+# Training - Stage 2
+# Finetune layers from ResNet stage 4 and up
+print("Training Resnet layer 4+")
+model.train(train_dataset_keypoints, val_dataset_keypoints,
+            learning_rate=training_config.LEARNING_RATE / 10,
+            epochs=20,
+            layers='4+')
+# Training - Stage 3
+# Finetune layers from ResNet stage 3 and up
+print("Training Resnet layer 3+")
+model.train(train_dataset_keypoints, val_dataset_keypoints,
+            learning_rate=training_config.LEARNING_RATE / 100,
+            epochs=100,
+            layers='all')

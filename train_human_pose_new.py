@@ -28,14 +28,13 @@ ROOT_DIR = os.getcwd()
 
 # TODO: Enter path where to save trained model
 # Ether root dir or full path
-#MODEL_DIR = os.path.join(ROOT_DIR, "mylogs")
-MODEL_DIR = "D:\Eigene Dateien\Dokumente\mylogs" 
+MODEL_DIR = os.path.join(ROOT_DIR, "mylogs")
+# MODEL_DIR = "D:\Eigene Dateien\Dokumente\mylogs" 
 
 # TODO: Enter path to trained weights .h5 file
 #COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5") # matterport model
 #COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose.h5") # superlee506 model
-COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose_lu.h5") # Lukas model
-#COCO_MODEL_PATH = "last" # last trained .h5 file in "mylogs"
+#COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose_lu.h5") # Lukas model
 
 # TODO: Enter your path to COCO images and annotations
 # coco/
@@ -43,19 +42,20 @@ COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose_lu.h5") # Luk
 # ├─train2017/
 # ├─val2017/
 # ├─annotations/
-COCO_DIR = "D:/Eigene Dateien/Dokumente/coco"
+COCO_DIR = "D:/coco"
 
 
 
 """Training parameters and loading annotations"""
 # Hyperparameter settings
 class TrainingConfig(coco.CocoConfig):
-    GPU_COUNT = 1
-    IMAGES_PER_GPU = 1 # changed to 1. GPU to small for 2 images
-    IMAGE_MAX_DIM = 512 # changed to 512. GPU to small for 1024x1024 images
+    STEPS_PER_EPOCH = 250
+    GPU_COUNT = 2
+    IMAGES_PER_GPU = 2
+    IMAGE_MAX_DIM = 704
     # Mask-R CNN paper config
     KEYPOINT_MASK_POOL_SIZE = 14
-    DETECTION_NMS_THRESHOLD = 0.5
+    RPN_NMS_THRESHOLD = 0.5
 
 training_config = TrainingConfig()
 
@@ -94,6 +94,9 @@ model = modellib.MaskRCNN(mode="training", model_dir=MODEL_DIR, config=training_
 
 # Load weights trained on MS-COCO
 
+model_path = model.get_imagenet_weights()
+model.load_weights(model_path, by_name=True)
+
 # necessary when loading matterport model
 # model.load_weights(COCO_MODEL_PATH, by_name=True,exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
 
@@ -101,9 +104,16 @@ model = modellib.MaskRCNN(mode="training", model_dir=MODEL_DIR, config=training_
 # model.load_weights(COCO_MODEL_PATH, by_name=True,exclude=["mrcnn_keypoint_mask_deconv"])
 
 # necessary when loading Lukas model
-model.load_weights(COCO_MODEL_PATH, by_name=True)
+# model.load_weights(COCO_MODEL_PATH, by_name=True)
 
-print("Loading weights from ", COCO_MODEL_PATH)
+# loading last trained model in "mylogs"
+# model_path = model.find_last()
+# model.load_weights(model_path, by_name=True)
+
+
+
+#print("Loading weights from ", COCO_MODEL_PATH)
+print("Loading weights from ", model_path)
 
 # Show model layers in training mode
 # model.keras_model.summary()
@@ -114,19 +124,19 @@ print("Loading weights from ", COCO_MODEL_PATH)
 print("Train heads")
 model.train(train_dataset_keypoints, val_dataset_keypoints,
             learning_rate=training_config.LEARNING_RATE,
-            epochs=15,
+            epochs=40,
             layers='heads')
 # Training - Stage 2
 # Finetune layers from ResNet stage 4 and up
 print("Training Resnet layer 4+")
 model.train(train_dataset_keypoints, val_dataset_keypoints,
-            learning_rate=training_config.LEARNING_RATE / 10,
-            epochs=20,
+            learning_rate=training_config.LEARNING_RATE,
+            epochs=120,
             layers='4+')
 # Training - Stage 3
 # Finetune layers from ResNet stage 3 and up
 print("Training Resnet layer 3+")
 model.train(train_dataset_keypoints, val_dataset_keypoints,
-            learning_rate=training_config.LEARNING_RATE / 100,
-            epochs=100,
+            learning_rate=training_config.LEARNING_RATE / 10,
+            epochs=160,
             layers='all')
