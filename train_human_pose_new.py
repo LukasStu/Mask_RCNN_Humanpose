@@ -35,6 +35,7 @@ MODEL_DIR = os.path.join(ROOT_DIR, "mylogs")
 #COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5") # matterport model
 #COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose.h5") # superlee506 model
 COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose_lu.h5") # Lukas model
+# No need for COCO_MODEL_PATH, when starting from ResNet or last trained model
 
 # TODO: Enter your path to COCO images and annotations
 # coco/
@@ -107,7 +108,7 @@ model = modellib.MaskRCNN(mode="training", model_dir=MODEL_DIR, config=training_
 model.load_weights(COCO_MODEL_PATH, by_name=True)
 
 # loading last trained model in "mylogs"
-#model_path = model.find_last()
+#model_path = model.find_last()[1]
 #model.load_weights(model_path, by_name=True)
 
 
