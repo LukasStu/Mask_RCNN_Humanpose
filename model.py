@@ -37,6 +37,15 @@ assert LooseVersion(tf.__version__) >= LooseVersion("2.0")
 tf.compat.v1.disable_eager_execution()
 # Muss das sein? Geht auch ohne...
 
+physical_devices = tf.config.list_physical_devices('GPU')
+try:
+  tf.config.experimental.set_memory_growth(physical_devices[0], True)
+except:
+  # Invalid device or cannot modify virtual devices once initialized.
+  pass
+
+
+
 ############################################################
 #  Utility Functions
 ############################################################
