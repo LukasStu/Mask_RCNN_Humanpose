@@ -17,6 +17,7 @@ import itertools
 import json
 import re
 import logging#
+import multiprocessing
 from collections import OrderedDict
 import numpy as np
 import scipy.misc
@@ -396,7 +397,7 @@ class PyramidROIAlign(KL.Layer):
         pooled = []
         box_to_level = []
         for i, level in enumerate(range(2, 6)):
-            ix = tf.compat.v1.where(tf.equal(roi_level, level))
+            ix = tf.where(tf.equal(roi_level, level))
             level_boxes = tf.gather_nd(boxes, ix)
 
             # Box indicies for crop_and_resize.
@@ -519,14 +520,14 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     gt_boxes, non_zeros = trim_zeros_graph(gt_boxes, name="trim_gt_boxes")
     gt_class_ids = tf.boolean_mask(gt_class_ids, non_zeros,
                                    name="trim_gt_class_ids")
-    gt_masks = tf.gather(gt_masks, tf.compat.v1.where(non_zeros)[:, 0], axis=2,
+    gt_masks = tf.gather(gt_masks, tf.where(non_zeros)[:, 0], axis=2,
                          name="trim_gt_masks")
 
     # Handle COCO crowds
     # A crowd box in COCO is a bounding box around several instances. Exclude
     # them from training. A crowd box is given a negative class ID.
-    crowd_ix = tf.compat.v1.where(gt_class_ids < 0)[:, 0]
-    non_crowd_ix = tf.compat.v1.where(gt_class_ids > 0)[:, 0]
+    crowd_ix = tf.where(gt_class_ids < 0)[:, 0]
+    non_crowd_ix = tf.where(gt_class_ids > 0)[:, 0]
     crowd_boxes = tf.gather(gt_boxes, crowd_ix)
     crowd_masks = tf.gather(gt_masks, crowd_ix, axis=2)
     gt_class_ids = tf.gather(gt_class_ids, non_crowd_ix)
@@ -545,9 +546,9 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     roi_iou_max = tf.reduce_max(overlaps, axis=1)
     # 1. Positive ROIs are those with >= 0.5 IoU with a GT box
     positive_roi_bool = (roi_iou_max >= 0.5)
-    positive_indices = tf.compat.v1.where(positive_roi_bool)[:, 0]
+    positive_indices = tf.where(positive_roi_bool)[:, 0]
     # 2. Negative ROIs are those with < 0.5 with every GT box. Skip crowds.
-    negative_indices = tf.compat.v1.where(tf.logical_and(roi_iou_max < 0.5, no_crowd_bool))[:, 0]
+    negative_indices = tf.where(tf.logical_and(roi_iou_max < 0.5, no_crowd_bool))[:, 0]
 
     # Subsample ROIs. Aim for 33% positive
     # Positive ROIs
@@ -657,16 +658,16 @@ def detection_keypoint_targets_graph(proposals, gt_class_ids, gt_boxes, gt_keypo
     gt_boxes, non_zeros = trim_zeros_graph(gt_boxes, name="trim_gt_boxes")
     gt_class_ids = tf.boolean_mask(gt_class_ids, non_zeros,
                                    name="trim_gt_class_ids")
-    gt_keypoints = tf.gather(gt_keypoints, tf.compat.v1.where(non_zeros)[:, 0], axis=0,
+    gt_keypoints = tf.gather(gt_keypoints, tf.where(non_zeros)[:, 0], axis=0,
                          name="trim_gt_keypoints")
-    gt_masks = tf.gather(gt_masks, tf.compat.v1.where(non_zeros)[:, 0], axis=2,
+    gt_masks = tf.gather(gt_masks, tf.where(non_zeros)[:, 0], axis=2,
                          name="trim_gt_masks")
 
     # Handle COCO crowds
     # A crowd box in COCO is a bounding box around several instances. Exclude
     # them from training. A crowd box is given a negative class ID.
-    crowd_ix = tf.compat.v1.where(gt_class_ids < 0)[:, 0]
-    non_crowd_ix = tf.compat.v1.where(gt_class_ids > 0)[:, 0]
+    crowd_ix = tf.where(gt_class_ids < 0)[:, 0]
+    non_crowd_ix = tf.where(gt_class_ids > 0)[:, 0]
     crowd_boxes = tf.gather(gt_boxes, crowd_ix)
     crowd_keypoints = tf.gather(gt_keypoints, crowd_ix)
     crowd_masks = tf.gather(gt_masks, crowd_ix, axis=2)
@@ -688,9 +689,9 @@ def detection_keypoint_targets_graph(proposals, gt_class_ids, gt_boxes, gt_keypo
     roi_iou_max = tf.reduce_max(overlaps, axis=1)
     # 1. Positive ROIs are those with >= 0.5 IoU with a GT box
     positive_roi_bool = (roi_iou_max >= 0.5)
-    positive_indices = tf.compat.v1.where(positive_roi_bool)[:, 0]
+    positive_indices = tf.where(positive_roi_bool)[:, 0]
     # 2. Negative ROIs are those with < 0.5 with every GT box. Skip crowds.
-    negative_indices = tf.compat.v1.where(tf.logical_and(roi_iou_max < 0.5, no_crowd_bool))[:, 0]
+    negative_indices = tf.where(tf.logical_and(roi_iou_max < 0.5, no_crowd_bool))[:, 0]
 
     # Subsample ROIs. Aim for 33% positive
     # Positive ROIs
@@ -1007,10 +1008,10 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     # TODO: Filter out boxes with zero area
 
     # Filter out background boxes
-    keep = tf.compat.v1.where(class_ids > 0)[:, 0]
+    keep = tf.where(class_ids > 0)[:, 0]
     # Filter out low confidence boxes
     if config.DETECTION_MIN_CONFIDENCE:
-        conf_keep = tf.compat.v1.where(class_scores >= config.DETECTION_MIN_CONFIDENCE)[:, 0]
+        conf_keep = tf.where(class_scores >= config.DETECTION_MIN_CONFIDENCE)[:, 0]
         keep = tf.sets.intersection(tf.expand_dims(keep, 0),
                                         tf.expand_dims(conf_keep, 0))
         keep = tf.sparse.to_dense(keep)[0]
@@ -1027,7 +1028,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     def nms_keep_map(class_id):
         """Apply Non-Maximum Suppression on ROIs of the given class."""
         # Indices of ROIs of the given class
-        ixs = tf.compat.v1.where(tf.equal(pre_nms_class_ids, class_id))[:, 0]
+        ixs = tf.where(tf.equal(pre_nms_class_ids, class_id))[:, 0]
         # Apply NMS
      
         class_keep = tf.image.non_max_suppression(
@@ -1050,7 +1051,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
                          dtype=tf.int64)
     # 3. Merge results into one list, and remove -1 padding
     nms_keep = tf.reshape(nms_keep, [-1])
-    nms_keep = tf.gather(nms_keep, tf.compat.v1.where(nms_keep > -1)[:, 0])
+    nms_keep = tf.gather(nms_keep, tf.where(nms_keep > -1)[:, 0])
     # 4. Compute intersection between keep and nms_keep
     keep = tf.sets.intersection(tf.expand_dims(keep, 0),
                                     tf.expand_dims(nms_keep, 0))
@@ -1344,18 +1345,15 @@ def build_fpn_keypoint_graph(rois, feature_maps,
         x = KL.TimeDistributed(BatchNorm(axis=3),
                                name='mrcnn_keypoint_mask_bn{}'.format(i + 1))(x)
         x = KL.Activation('relu')(x)
-
-    x = KL.TimeDistributed(KL.Conv2DTranspose(512, (2, 2), strides=2),
+    # Deconvolution
+    x = KL.TimeDistributed(KL.Conv2DTranspose(num_keypoints, (2, 2), strides=2),
                            name="mrcnn_keypoint_mask_deconv")(x)
-    
-    #shape: batch_size, num_roi, 56, 56, 512
     x = KL.TimeDistributed(
-        KL.Lambda(lambda z: tf.image.resize(z, [56, 56], method='bilinear')),name="mrcnn_keypoint_mask_upsample")(x)
-    
-    # shape: batch_size, num_roi, 56, 56, num_keypoint
-    x = KL.TimeDistributed(KL.Conv2D(num_keypoints, (1, 1), strides=1),
-                           name="mrcnn_keypoint_mask")(x)
-    
+        KL.Lambda(lambda z: tf.image.resize(z, [28, 28], method='bilinear')),name="mrcnn_keypoint_mask_upsample_1")(x)
+
+    #shape: batch_size, num_roi, 56, 56, num_keypoint
+    x = KL.TimeDistributed(
+        KL.Lambda(lambda z: tf.image.resize(z, [56, 56], method='bilinear')),name="mrcnn_keypoint_mask_upsample_2")(x)
     # shape: batch_size, num_roi, num_keypoint, 56, 56
     x = KL.TimeDistributed(KL.Lambda(lambda x: tf.transpose(x,[0,3,1,2])), name="mrcnn_keypoint_mask_transpose")(x)
     s = K.int_shape(x)
@@ -1394,7 +1392,7 @@ def rpn_class_loss_graph(rpn_match, rpn_class_logits):
     anchor_class = K.cast(K.equal(rpn_match, 1), tf.int32)
     # Positive and Negative anchors contribute to the loss,
     # but neutral anchors (match value = 0) don't.
-    indices = tf.compat.v1.where(K.not_equal(rpn_match, 0))
+    indices = tf.where(K.not_equal(rpn_match, 0))
     # Pick rows that contribute to the loss and filter out the rest.
     rpn_class_logits = tf.gather_nd(rpn_class_logits, indices)
     anchor_class = tf.gather_nd(anchor_class, indices)
@@ -1419,7 +1417,7 @@ def rpn_bbox_loss_graph(config, target_bbox, rpn_match, rpn_bbox):
     # Positive anchors contribute to the loss, but negative and
     # neutral anchors (match value of 0 or -1) don't.
     rpn_match = K.squeeze(rpn_match, -1)
-    indices = tf.compat.v1.where(K.equal(rpn_match, 1))
+    indices = tf.where(K.equal(rpn_match, 1))
 
     # Pick bbox deltas that contribute to the loss
     rpn_bbox = tf.gather_nd(rpn_bbox, indices)
@@ -1481,7 +1479,7 @@ def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
 
     # Only positive ROIs contribute to the loss. And only
     # the right class_id of each ROI. Get their indices.
-    positive_roi_ix = tf.compat.v1.where(target_class_ids > 0)[:, 0]
+    positive_roi_ix = tf.where(target_class_ids > 0)[:, 0]
     positive_roi_class_ids = tf.cast(
         tf.gather(target_class_ids, positive_roi_ix), tf.int64)
     indices = tf.stack([positive_roi_ix, positive_roi_class_ids], axis=1)
@@ -1519,7 +1517,7 @@ def mrcnn_mask_loss_graph(target_masks, target_class_ids, pred_masks):
 
     # Only positive ROIs contribute to the loss. And only
     # the class specific mask of each ROI.
-    positive_ix = tf.compat.v1.where(target_class_ids > 0)[:, 0]
+    positive_ix = tf.where(target_class_ids > 0)[:, 0]
     positive_class_ids = tf.cast(
         tf.gather(target_class_ids, positive_ix), tf.int64)
     indices = tf.stack([positive_ix, positive_class_ids], axis=1)
@@ -1551,7 +1549,7 @@ def keypoint_weight_loss_graph(target_keypoint_weight, pred_class, target_class_
     pred_class = K.reshape(pred_class, (-1, 17, K.int_shape(pred_class)[3]))
     target_mask_class = tf.cast(K.reshape(target_mask_class, (-1, 17)), tf.int64)
 
-    positive_roi_ix = tf.compat.v1.where(target_class_ids > 0)[:, 0]
+    positive_roi_ix = tf.where(target_class_ids > 0)[:, 0]
 
     # Gather the positive classes (predicted and true) that contribute to loss
     target_class = tf.gather(target_mask_class, positive_roi_ix)
@@ -1595,8 +1593,8 @@ def test_keypoint_mrcnn_mask_loss_graph(target_keypoints, target_keypoint_weight
 
     # Only positive person ROIs contribute to the loss. And only
     # the people specific mask of each ROI.
-    # positive_people_ix = tf.compat.v1.where(target_class_ids > 0)[:, 0]
-    positive_people_ix = KL.Lambda(lambda x:tf.compat.v1.where(x >0)[:,0], name="positive_people_ix")(target_class_ids)
+    # positive_people_ix = tf.where(target_class_ids > 0)[:, 0]
+    positive_people_ix = KL.Lambda(lambda x:tf.where(x >0)[:,0], name="positive_people_ix")(target_class_ids)
 
     positive_people_ids = tf.cast(
         tf.gather(target_class_ids, positive_people_ix), tf.int64)
@@ -1646,7 +1644,7 @@ def keypoint_mrcnn_mask_loss_graph(target_keypoints, target_keypoint_weights, ta
     target_class_ids = K.reshape(target_class_ids, (-1,))
     # Only positive person ROIs contribute to the loss. And only
     # the people specific mask of each ROI.
-    positive_people_ix = tf.compat.v1.where(target_class_ids > 0)[:, 0]
+    positive_people_ix = tf.where(target_class_ids > 0)[:, 0]
     positive_people_ids = tf.cast(
         tf.gather(target_class_ids, positive_people_ix), tf.int64)
 
@@ -2636,7 +2634,7 @@ class MaskRCNN():
         # Bottom-up Layers (C2-C5)
         # Returns a list of the last layers of each stage, 5 in total.
         # Don't create the thead (stage 5), so we pick the 4th item in the list.
-        _, C2, C3, C4, C5 = resnet_graph(input_image, "resnet101", stage5=True)
+        _, C2, C3, C4, C5 = resnet_graph(input_image, "resnet50", stage5=True)
 
         # Top-down Layers (P2-P6 )
         # TODO: add assert to varify feature map sizes match what's in config
@@ -3092,10 +3090,10 @@ class MaskRCNN():
         # Work-around for Windows: Keras fails on Windows when using
         # multiprocessing workers. See discussion here:
         # https://github.com/matterport/Mask_RCNN/issues/13#issuecomment-353124009
-        if os.name is 'nt':
+        if os.name == 'nt':
             workers = 0
         else:
-            workers = tf.math.maximum(self.config.BATCH_SIZE // 2, 2)
+            workers = multiprocessing.cpu_count()
 
         self.keras_model.fit(
             train_generator,
