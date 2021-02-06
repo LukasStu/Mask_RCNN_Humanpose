@@ -50,7 +50,7 @@ COCO_DIR = "D:/coco"
 # Hyperparameter settings
 class TrainingConfig(coco.CocoConfig):
     USE_MINI_MASK = False
-    GPU_COUNT = 4
+    GPU_COUNT = 1
     IMAGES_PER_GPU = 2
     STEPS_PER_EPOCH = 1000*16/(GPU_COUNT*IMAGES_PER_GPU)
     IMAGE_MAX_DIM = 704
