@@ -2830,9 +2830,6 @@ class MaskRCNN():
             model = KM.Model([input_image, input_image_meta],
                              [detections, mrcnn_class, mrcnn_bbox, rpn_rois, rpn_class, rpn_bbox, mrcnn_mask, keypoint_mcrcnn_prob],
                              name='keypoint_mask_rcnn')
-            #model.summary()
-            #keras.utils.plot_model(model, "inference_model_tfkeras_new_keypoint_graph.png", show_shapes=True)
-
 
 
         # Add multi-GPU support.
@@ -3077,7 +3074,7 @@ class MaskRCNN():
         callbacks = [
             tf.keras.callbacks.TensorBoard(log_dir=self.log_dir,
                                         histogram_freq=0,
-                                        profile_batch = 10,
+                                        profile_batch = 0, # hier Aufzeichnungsepoche eintragen
                                         write_graph=True,
                                         write_images=False),
             tf.keras.callbacks.ModelCheckpoint(self.checkpoint_path,

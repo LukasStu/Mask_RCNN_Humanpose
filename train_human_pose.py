@@ -42,7 +42,8 @@ MODEL_DIR = os.path.join(ROOT_DIR, "mylogs")
 # ├─train2017/
 # ├─val2017/
 # ├─annotations/
-COCO_DIR = "D:/coco"
+#COCO_DIR = "D:/coco"
+COCO_DIR = "D:/Eigene Dateien/Dokumente/coco"
 
 
 
@@ -51,7 +52,8 @@ COCO_DIR = "D:/coco"
 class TrainingConfig(coco.CocoConfig):
     USE_MINI_MASK = False
     GPU_COUNT = 1
-    IMAGES_PER_GPU = 2
+    IMAGES_PER_GPU = 1
+    #STEPS_PER_EPOCH = int(1000*16/(GPU_COUNT*IMAGES_PER_GPU))
     STEPS_PER_EPOCH = 1000*16/(GPU_COUNT*IMAGES_PER_GPU)
     IMAGE_MAX_DIM = 704
     TRAIN_ROIS_PER_IMAGE = 80
