@@ -98,6 +98,7 @@ for i, info in enumerate(val_dataset_keypoints.class_info):
 model = modellib.MaskRCNN(mode="training", model_dir=MODEL_DIR, config=training_config)
 
 # Load weights trained on MS-COCO
+# TODO: Select model
 
 COCO_MODEL_PATH = model.get_imagenet_weights()
 model.load_weights(COCO_MODEL_PATH, by_name=True)
