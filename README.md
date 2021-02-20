@@ -1,6 +1,6 @@
 Mask RCNN for Human Pose Estimation
 -----------------------------------
-# Project from SuperLee506. Updated to Tensorflow 2.1 and tf.keras
+# Project from SuperLee506. Updated to Tensorflow 2.4 and tf.keras
 * The original code is from "https://github.com/matterport/Mask_RCNN".
 * This code helped me a lot when switching to tf.keras "https://github.com/akTwelve/Mask_RCNN".
 

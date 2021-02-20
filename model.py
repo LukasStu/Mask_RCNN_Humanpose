@@ -3053,6 +3053,7 @@ class MaskRCNN():
 
         # Pre-defined layer regular expressions
         layer_regex = {
+            "rpn": r"(rpn\_.*)|(fpn\_.*)",
             # all layers but the backbone
             "heads": r"(mrcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
             # From a specific Resnet stage and up
