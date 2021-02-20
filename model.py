@@ -1345,18 +1345,15 @@ def build_fpn_keypoint_graph(rois, feature_maps,
         x = KL.TimeDistributed(BatchNorm(axis=3),
                                name='mrcnn_keypoint_mask_bn{}'.format(i + 1))(x)
         x = KL.Activation('relu')(x)
-
-    x = KL.TimeDistributed(KL.Conv2DTranspose(512, (2, 2), strides=2),
+    # Deconvolution
+    x = KL.TimeDistributed(KL.Conv2DTranspose(num_keypoints, (2, 2), strides=2),
                            name="mrcnn_keypoint_mask_deconv")(x)
-    
-    #shape: batch_size, num_roi, 56, 56, 512
     x = KL.TimeDistributed(
-        KL.Lambda(lambda z: tf.image.resize(z, [56, 56], method='bilinear')),name="mrcnn_keypoint_mask_upsample")(x)
-    
-    # shape: batch_size, num_roi, 56, 56, num_keypoint
-    x = KL.TimeDistributed(KL.Conv2D(num_keypoints, (1, 1), strides=1),
-                           name="mrcnn_keypoint_mask")(x)
-    
+        KL.Lambda(lambda z: tf.image.resize(z, [28, 28], method='bilinear')),name="mrcnn_keypoint_mask_upsample_1")(x)
+
+    #shape: batch_size, num_roi, 56, 56, num_keypoint
+    x = KL.TimeDistributed(
+        KL.Lambda(lambda z: tf.image.resize(z, [56, 56], method='bilinear')),name="mrcnn_keypoint_mask_upsample_2")(x)
     # shape: batch_size, num_roi, num_keypoint, 56, 56
     x = KL.TimeDistributed(KL.Lambda(lambda x: tf.transpose(x,[0,3,1,2])), name="mrcnn_keypoint_mask_transpose")(x)
     s = K.int_shape(x)
@@ -2637,7 +2634,7 @@ class MaskRCNN():
         # Bottom-up Layers (C2-C5)
         # Returns a list of the last layers of each stage, 5 in total.
         # Don't create the thead (stage 5), so we pick the 4th item in the list.
-        _, C2, C3, C4, C5 = resnet_graph(input_image, "resnet50", stage5=True)
+        _, C2, C3, C4, C5 = resnet_graph(input_image, "resnet101", stage5=True)
 
         # Top-down Layers (P2-P6 )
         # TODO: add assert to varify feature map sizes match what's in config

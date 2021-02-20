@@ -121,7 +121,7 @@ print("Loading weights from ", COCO_MODEL_PATH)
 # model.keras_model.summary()
 
 # Correction when continue training
-x = 62+27+25
+x = 0
 
 """Train model -starting from heads"""
 # Training - Stage 1
