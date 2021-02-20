@@ -33,7 +33,7 @@ MODEL_DIR = os.path.join(ROOT_DIR, "mylogs")
 
 # TODO: Enter path to trained weights .h5 file
 #COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5") # matterport model
-#COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose.h5") # superlee506 model
+COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose.h5") # superlee506 model
 #COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose_lu.h5") # Lukas model
 
 # TODO: Enter your path to COCO images and annotations
@@ -57,6 +57,7 @@ class TrainingConfig(coco.CocoConfig):
     IMAGE_MAX_DIM = 704
     #TRAIN_ROIS_PER_IMAGE = 80
     #MAX_GT_INSTANCES = 64
+    
     # Mask-R CNN paper config
     KEYPOINT_MASK_POOL_SIZE = 14
     RPN_NMS_THRESHOLD = 0.5
@@ -105,15 +106,15 @@ model = modellib.MaskRCNN(mode="training", model_dir=MODEL_DIR, config=training_
 # necessary when loading matterport model
 # model.load_weights(COCO_MODEL_PATH, by_name=True,exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
 
-# necessary when loading Superlee506 model with old keypoint mask branch
+# necessary when loading Superlee506 model (new keypoint mask branch in model.py)
 # model.load_weights(COCO_MODEL_PATH, by_name=True,exclude=["mrcnn_keypoint_mask_deconv"])
 
-# necessary when loading LukasStu model
-# model.load_weights(COCO_MODEL_PATH, by_name=True)
+# necessary when loading LukasStu or Superlee506 (old keypoint branch in model.py) model
+model.load_weights(COCO_MODEL_PATH, by_name=True)
 
 # loading last trained model in "mylogs"
-COCO_MODEL_PATH = model.find_last()[1]
-model.load_weights(COCO_MODEL_PATH, by_name=True)
+# COCO_MODEL_PATH = model.find_last()[1]
+# model.load_weights(COCO_MODEL_PATH, by_name=True)
 
 print("Loading weights from ", COCO_MODEL_PATH)
 
@@ -125,11 +126,11 @@ x = 0
 
 """Train model -starting from heads"""
 # Training - Stage 1
-# print("Train heads")
-# model.train(train_dataset_keypoints, val_dataset_keypoints,
-#             learning_rate=training_config.LEARNING_RATE /5,
-#             epochs=100-x,
-#             layers='heads')
+print("Train heads")
+model.train(train_dataset_keypoints, val_dataset_keypoints,
+            learning_rate=training_config.LEARNING_RATE /5,
+            epochs=100-x,
+            layers='heads')
 # Training - Stage 2
 # Finetune layers from ResNet stage 4 and up
 print("Training Resnet layer 4+")
