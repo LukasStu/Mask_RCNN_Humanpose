@@ -1,4 +1,4 @@
-name: evalcoc24
+name: evalcoco
 channels:
   - defaults
 dependencies:
