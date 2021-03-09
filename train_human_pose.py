@@ -32,8 +32,8 @@ MODEL_DIR = os.path.join(ROOT_DIR, "mylogs")
 # MODEL_DIR = "D:\Eigene Dateien\Dokumente\mylogs" 
 
 # TODO: Enter path to trained weights .h5 file
-#COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5") # matterport model
-COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose.h5") # superlee506 model
+COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5") # matterport model
+#COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose.h5") # superlee506 model
 #COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco_humanpose_lu.h5") # Lukas model
 
 # TODO: Enter your path to COCO images and annotations
@@ -51,9 +51,9 @@ COCO_DIR = "D:/coco"
 # Hyperparameter settings
 class TrainingConfig(coco.CocoConfig):
     USE_MINI_MASK = False
-    GPU_COUNT = 1
+    GPU_COUNT = 4
     IMAGES_PER_GPU = 1
-    STEPS_PER_EPOCH = 4000
+    STEPS_PER_EPOCH = 250
     IMAGE_MAX_DIM = 704
     #TRAIN_ROIS_PER_IMAGE = 80
     #MAX_GT_INSTANCES = 64
@@ -100,21 +100,22 @@ model = modellib.MaskRCNN(mode="training", model_dir=MODEL_DIR, config=training_
 # Load weights trained on MS-COCO
 # TODO: Select model
 
+# necessary when starting von ResNet50
 # COCO_MODEL_PATH = model.get_imagenet_weights()
 # model.load_weights(COCO_MODEL_PATH, by_name=True)
 
 # necessary when loading matterport model
-# model.load_weights(COCO_MODEL_PATH, by_name=True,exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
+#model.load_weights(COCO_MODEL_PATH, by_name=True, exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
 
 # necessary when loading Superlee506 model (new keypoint mask branch in model.py)
 # model.load_weights(COCO_MODEL_PATH, by_name=True,exclude=["mrcnn_keypoint_mask_deconv"])
 
 # necessary when loading LukasStu or Superlee506 (old keypoint branch in model.py) model
-model.load_weights(COCO_MODEL_PATH, by_name=True)
+# model.load_weights(COCO_MODEL_PATH, by_name=True)
 
 # loading last trained model in "mylogs"
-# COCO_MODEL_PATH = model.find_last()[1]
-# model.load_weights(COCO_MODEL_PATH, by_name=True)
+COCO_MODEL_PATH = model.find_last()[1]
+model.load_weights(COCO_MODEL_PATH, by_name=True)
 
 print("Loading weights from ", COCO_MODEL_PATH)
 
@@ -129,19 +130,19 @@ x = 0
 print("Train heads")
 model.train(train_dataset_keypoints, val_dataset_keypoints,
             learning_rate=training_config.LEARNING_RATE /5,
-            epochs=100-x,
+            epochs=15-x,
             layers='heads')
 # Training - Stage 2
 # Finetune layers from ResNet stage 4 and up
 print("Training Resnet layer 4+")
 model.train(train_dataset_keypoints, val_dataset_keypoints,
             learning_rate=training_config.LEARNING_RATE / 10,
-            epochs=120-x,
+            epochs=20-x,
             layers='4+')
 # Training - Stage 3
 # Finetune layers from ResNet stage 3 and up
 print("Training Resnet layer 3+")
 model.train(train_dataset_keypoints, val_dataset_keypoints,
             learning_rate=training_config.LEARNING_RATE / 100,
-            epochs=130-x,
+            epochs=100-x,
             layers='all')
