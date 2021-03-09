@@ -5,9 +5,9 @@ Mask RCNN for Human Pose Estimation
 * This code helped me a lot when switching to tf.keras "https://github.com/akTwelve/Mask_RCNN".
 
 
-# My Environment on Windows 10
-* conda create -n tf21 python=3.7 git numpy scikit-image scipy Pillow cython h5py pandas opencv pydot tensorflow-gpu==2.1.0
-* pip install git+https://github.com/philferriere/cocoapi.git#subdirectory=PythonAPI
+# My Conda-Environment on Windows 10
+* choose env from folder "conda_envs"
+* Install using conda promt: conda env create -f tf24-profiler.yml
 
 
 # Getting Started
