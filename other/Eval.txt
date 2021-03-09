@@ -1,0 +1,2 @@
+python coco.py evaluate --dataset="D:/Eigene Dateien/Dokumente/coco" --model="C:/Users/LStue/Mask_RCNN_Humanpose/mask_rcnn_coco_humanpose.h5"
+python coco.py evaluate --dataset="D:/Eigene Dateien/Dokumente/coco" --model="C:/Users/LStue/Mask_RCNN_Humanpose/mask_rcnn_coco_humanpose_lu.h5"

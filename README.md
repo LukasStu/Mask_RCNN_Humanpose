@@ -1,20 +1,15 @@
 Mask RCNN for Human Pose Estimation
 -----------------------------------
+# Project from SuperLee506. Updated to Tensorflow 2.4 and tf.keras
+* The original code is from "https://github.com/matterport/Mask_RCNN".
+* This code helped me a lot when switching to tf.keras "https://github.com/akTwelve/Mask_RCNN".
 
 
-The original code is from "https://github.com/matterport/Mask_RCNN" on Python 3, Keras, and TensorFlow. The code reproduce the work of "https://arxiv.org/abs/1703.06870" for human pose estimation.
-This project aims to addressing the [issue#2][1]. 
-When I start it, I refer to another project by [@RodrigoGantier][2] .
-## However RodrigoGantier's project has the following problems:
-*  It's codes have few comments and still use the original names from [@Matterport][3]'s project, which make the project hard to understand. 
-*  When I trained this model, I found it's hard to converge as described in [issue#3][4].
+# My Environment on Windows 10
+* conda create -n tf21 python=3.7 git numpy scikit-image scipy Pillow cython h5py pandas opencv pydot tensorflow-gpu==2.1.0
+* pip install git+https://github.com/philferriere/cocoapi.git#subdirectory=PythonAPI
 
-## Requirements
-* Python 3.5+
-* TensorFlow 1.4+
-* Keras 2.0.8+
-* Jupyter Notebook
-* Numpy, skimage, scipy, Pillow, cython, h5py
+
 # Getting Started
 * [inference_humanpose.ipynb][5] shows how to predict the keypoint of human using my trained model. It randomly chooses a image from the validation set. You can download pre-trained COCO weights for human pose estimation (mask_rcnn_coco_humanpose.h5) from the releases page (https://github.com/Superlee506/Mask_RCNN_Humanpose/releases).
 * [train_humanpose.ipynb][6] shows how to train the model step by step. You can also use "python train_humanpose.py" to  start training.
@@ -22,7 +17,7 @@ When I start it, I refer to another project by [@RodrigoGantier][2] .
 * [demo_human_pose.ipynb][8] A new demo for images input from the "images" folder. [04-11-2018]
 * [video_demo.py][9] A new demo for video input from camera.[04-11-2018]
 
-# Discussion
+# Discussion (Superlee506)
 * I convert the joint coordinates into an integer label ([0, 56*56)), and use  `tf.nn.sparse_softmax_cross_entropy_with_logits` as the loss function. This refers to the original [Detectron code][10] which is key reason why my loss can converge quickly.
 * If you still want to use the keypoint mask as output, you'd better adopt the modified loss function proposed by [@QtSignalProcessing][11] in [issue#2][12]. Because after crop and resize, the keypoint masks may hava more than one 1 values, and this will make the original soft_cross entropy_loss hard to converge.
 * Althougth the loss converge quickly, the prediction results isn't as good as the oringal papers, especially for right or left shoulder, right or left knee, etc. I'm confused with it, so I release the code and any contribution or suggestion to this repository is welcome.

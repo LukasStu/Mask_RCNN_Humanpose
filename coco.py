@@ -57,7 +57,7 @@ COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 
 # Directory to save logs and model checkpoints, if not provided
 # through the command line argument --logs
-DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
+DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "mylogs")
 DEFAULT_DATASET_YEAR = "2017"
 
 ############################################################
@@ -93,7 +93,7 @@ class CocoConfig(Config):
     RPN_TRAIN_ANCHORS_PER_IMAGE = 150
     USE_MINI_MASK = True
     MASK_POOL_SIZE = 14
-    KEYPOINT_MASK_POOL_SIZE = 7
+    KEYPOINT_MASK_POOL_SIZE = 14
     LEARNING_RATE = 0.002
     STEPS_PER_EPOCH = 1000
     WEIGHT_LOSS = True
@@ -112,7 +112,7 @@ Person_ID = 1
 ############################################################
 
 class CocoDataset(utils.Dataset):
-    def __init__(self, task_type= "instances",class_map = None):
+    def __init__(self, task_type= "person_keypoints",class_map = None):
         assert task_type in ["instances", "person_keypoints"]
         self.task_type = task_type
         # the connection between 2 close keypoints
@@ -479,7 +479,8 @@ def evaluate_coco(model, dataset, coco, eval_type="bbox", limit=0, image_ids=Non
 
         # Run detection
         t = time.time()
-        r = model.detect([image], verbose=0)[0]
+        r = model.detect_keypoint([image], verbose=0)[0]
+        #r = model.detect([image], verbose=0)[0]
         t_prediction += (time.time() - t)
 
         # Convert results to COCO format
@@ -627,10 +628,10 @@ if __name__ == '__main__':
     elif args.command == "evaluate":
         # Validation dataset
         dataset_val = CocoDataset()
-        coco = dataset_val.load_coco(args.dataset, "minival", year=args.year, return_coco=True, auto_download=args.download)
+        coco = dataset_val.load_coco(args.dataset, "val", year=args.year, return_coco=True, auto_download=args.download)
         dataset_val.prepare()
         print("Running COCO evaluation on {} images.".format(args.limit))
-        evaluate_coco(model, dataset_val, coco, "bbox", limit=int(args.limit))
+        evaluate_coco(model, dataset_val, coco, "segm", limit=int(args.limit))
     else:
         print("'{}' is not recognized. "
               "Use 'train' or 'evaluate'".format(args.command))
