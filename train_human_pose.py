@@ -42,8 +42,8 @@ COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5") # matterport model
 # ├─train2017/
 # ├─val2017/
 # ├─annotations/
-COCO_DIR = "D:/coco"
-#COCO_DIR = "D:/Eigene Dateien/Dokumente/coco"
+#COCO_DIR = "D:/coco"
+COCO_DIR = "D:/Eigene Dateien/Dokumente/coco"
 
 
 
@@ -51,16 +51,16 @@ COCO_DIR = "D:/coco"
 # Hyperparameter settings
 class TrainingConfig(coco.CocoConfig):
     USE_MINI_MASK = False
-    GPU_COUNT = 4
+    GPU_COUNT = 1
     IMAGES_PER_GPU = 1
-    STEPS_PER_EPOCH = 250
-    IMAGE_MAX_DIM = 704
+    STEPS_PER_EPOCH = 1000
+    IMAGE_MAX_DIM = 512
     #TRAIN_ROIS_PER_IMAGE = 80
-    #MAX_GT_INSTANCES = 64
+    MAX_GT_INSTANCES = 10
     
     # Mask-R CNN paper config
     KEYPOINT_MASK_POOL_SIZE = 14
-    RPN_NMS_THRESHOLD = 0.5
+    #RPN_NMS_THRESHOLD = 0.5
 
 training_config = TrainingConfig()
 
@@ -105,7 +105,7 @@ model = modellib.MaskRCNN(mode="training", model_dir=MODEL_DIR, config=training_
 # model.load_weights(COCO_MODEL_PATH, by_name=True)
 
 # necessary when loading matterport model
-#model.load_weights(COCO_MODEL_PATH, by_name=True, exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
+# model.load_weights(COCO_MODEL_PATH, by_name=True, exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
 
 # necessary when loading Superlee506 model (new keypoint mask branch in model.py)
 # model.load_weights(COCO_MODEL_PATH, by_name=True,exclude=["mrcnn_keypoint_mask_deconv"])
@@ -123,26 +123,26 @@ print("Loading weights from ", COCO_MODEL_PATH)
 # model.keras_model.summary()
 
 # Correction when continue training
-x = 0
+x = 18
 
 """Train model -starting from heads"""
 # Training - Stage 1
 print("Train heads")
 model.train(train_dataset_keypoints, val_dataset_keypoints,
             learning_rate=training_config.LEARNING_RATE /5,
-            epochs=15-x,
+            epochs=30-x,
             layers='heads')
-# Training - Stage 2
-# Finetune layers from ResNet stage 4 and up
-print("Training Resnet layer 4+")
-model.train(train_dataset_keypoints, val_dataset_keypoints,
-            learning_rate=training_config.LEARNING_RATE / 10,
-            epochs=20-x,
-            layers='4+')
-# Training - Stage 3
-# Finetune layers from ResNet stage 3 and up
-print("Training Resnet layer 3+")
-model.train(train_dataset_keypoints, val_dataset_keypoints,
-            learning_rate=training_config.LEARNING_RATE / 100,
-            epochs=100-x,
-            layers='all')
+# # Training - Stage 2
+# # Finetune layers from ResNet stage 4 and up
+# print("Training Resnet layer 4+")
+# model.train(train_dataset_keypoints, val_dataset_keypoints,
+#             learning_rate=training_config.LEARNING_RATE / 10,
+#             epochs=60-x,
+#             layers='4+')
+# # Training - Stage 3
+# # Finetune layers from ResNet stage 3 and up
+# print("Training Resnet layer 3+")
+# model.train(train_dataset_keypoints, val_dataset_keypoints,
+#             learning_rate=training_config.LEARNING_RATE / 100,
+#             epochs=100-x,
+#             layers='all')
